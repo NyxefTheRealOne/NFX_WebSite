@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFX OS — Developer API Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --surface2: #1b1b1b;
+    --border: #2a2a2a;
+    --border-bright: #3f3f3f;
+    --text: #e8e4dc;
+    --muted: #6b6560;
+    --accent: #e8d5a0;
+    --accent2: #7eb8a4;
+    --accent3: #c97b5a;
+    --tag-disp: #1a2420;
+    --tag-disp-t: #7eb8a4;
+    --tag-btn: #201a14;
+    --tag-btn-t: #e8d5a0;
+    --tag-ble: #1d1420;
+    --tag-ble-t: #b07ec8;
+    --tag-time: #14181a;
+    --tag-time-t: #6aaccc;
+    --tag-app: #1a1414;
+    --tag-app-t: #c97b5a;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  ::selection { background: #e8d5a020; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+  .sidebar-header {
+    padding: 28px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .sidebar-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .sidebar-nav { padding: 12px 0 24px; flex: 1; }
+
+  .nav-section-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 14px 20px 6px;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 20px;
+    font-size: 13px;
+    color: #9a948c;
+    transition: color 0.15s, background 0.15s;
+    cursor: pointer;
+  }
+
+  .nav-link:hover { color: var(--text); background: #ffffff06; }
+  .nav-link.active { color: var(--accent); background: #e8d5a00a; }
+
+  .nav-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--border-bright);
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .nav-link:hover .nav-dot { background: var(--muted); }
+  .nav-link.active .nav-dot { background: var(--accent); }
+
+  /* ── MAIN ── */
+  #main {
+    margin-left: 240px;
+    padding: 0 60px 100px;
+    max-width: 960px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 80px 0 60px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 72px;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 18px;
+  }
+
+  .hero h1 {
+    font-family: var(--mono);
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+
+  .hero h1 span { color: var(--accent); }
+
+  .hero-desc {
+    font-size: 15px;
+    color: #9a948c;
+    max-width: 560px;
+    line-height: 1.8;
+    margin-bottom: 32px;
+  }
+
+  .hero-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  /* ── SECTION ── */
+  .section {
+    margin-bottom: 80px;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.4s forwards;
+  }
+
+  .section:nth-child(1) { animation-delay: 0.05s; }
+  .section:nth-child(2) { animation-delay: 0.10s; }
+  .section:nth-child(3) { animation-delay: 0.15s; }
+  .section:nth-child(4) { animation-delay: 0.20s; }
+  .section:nth-child(5) { animation-delay: 0.25s; }
+  .section:nth-child(6) { animation-delay: 0.30s; }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: none; }
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+
+  .section-count {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ── CATEGORY TAG ── */
+  .cat-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+  }
+  .cat-display  { background: var(--tag-disp);  color: var(--tag-disp-t); }
+  .cat-input    { background: var(--tag-btn);   color: var(--tag-btn-t); }
+  .cat-ble      { background: var(--tag-ble);   color: var(--tag-ble-t); }
+  .cat-time     { background: var(--tag-time);  color: var(--tag-time-t); }
+  .cat-app      { background: var(--tag-app);   color: var(--tag-app-t); }
+
+  /* ── FUNCTION CARD ── */
+  .fn-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .fn-card:hover { border-color: var(--border-bright); }
+
+  .fn-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .fn-sig {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    flex: 1;
+    word-break: break-all;
+  }
+
+  .fn-sig .fn-name { color: var(--text); }
+  .fn-sig .fn-type { color: var(--accent2); }
+  .fn-sig .fn-param { color: #c9a060; }
+  .fn-sig .fn-default { color: var(--muted); }
+
+  .fn-chevron {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .fn-card.open .fn-chevron { transform: rotate(90deg); }
+
+  .fn-body {
+    display: none;
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .fn-card.open .fn-body { display: block; }
+
+  .fn-desc {
+    font-size: 13px;
+    color: #9a948c;
+    margin: 14px 0 16px;
+    line-height: 1.7;
+  }
+
+  .params-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-size: 12px;
+  }
+
+  .params-table th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 6px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  .params-table td {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .params-table tr:nth-child(even) td { background: #ffffff03; }
+
+  .param-name { font-family: var(--mono); color: #c9a060; font-size: 12px; }
+  .param-type { font-family: var(--mono); color: var(--accent2); font-size: 11px; }
+  .param-desc { color: #9a948c; }
+  .param-def  { font-family: var(--mono); color: var(--muted); font-size: 11px; }
+
+  /* ── CODE BLOCK ── */
+  pre {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  pre::-webkit-scrollbar { height: 4px; }
+  pre::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  .kw  { color: #c97b8a; }
+  .ty  { color: var(--accent2); }
+  .fn  { color: #7eb8e8; }
+  .str { color: #a8c87e; }
+  .cm  { color: #4a4840; font-style: italic; }
+  .nm  { color: #c9a060; }
+  .nu  { color: #c9a060; }
+
+  /* ── EXAMPLE BOX ── */
+  .example-block {
+    margin-top: 16px;
+  }
+
+  .example-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  /* ── INTRO GUIDE BOXES ── */
+  .guide-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .guide-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px;
+  }
+
+  .guide-box-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: 0.06em;
+  }
+
+  .guide-box p {
+    font-size: 12px;
+    color: #9a948c;
+    line-height: 1.7;
+  }
+
+  .callout {
+    background: #1a1a0e;
+    border: 1px solid #3a3510;
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #b0aa96;
+    line-height: 1.7;
+  }
+
+  .callout strong {
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .callout.info {
+    background: #0e1a1a;
+    border-color: #104030;
+    border-left-color: var(--accent2);
+  }
+
+  .callout.info strong { color: var(--accent2); }
+
+  /* ── FULL EXAMPLE ── */
+  .full-example {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .full-example-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .full-example-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .full-example-lang {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--border-bright);
+  }
+
+  .full-example pre {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  /* ── RETURN TAG ── */
+  .returns {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent2);
+    background: #0e1a16;
+    border: 1px solid #1a3028;
+    border-radius: 3px;
+    padding: 3px 8px;
+    margin-top: 6px;
+    margin-bottom: 14px;
+  }
+
+  .returns span { color: var(--muted); font-size: 10px; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── ACTIVE SECTION HIGHLIGHT ── */
+  .section-anchor { scroll-margin-top: 40px; }
+
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    #main { margin-left: 0; padding: 0 24px 80px; }
+    .guide-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">NFX OS</div>
+    <div class="sidebar-sub">API Reference v1.0</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Getting Started</div>
+    <a class="nav-link" href="#overview"><div class="nav-dot"></div>Overview</a>
+    <a class="nav-link" href="#quickstart"><div class="nav-dot"></div>App Skeleton</a>
+    <a class="nav-link" href="#lifecycle"><div class="nav-dot"></div>App Lifecycle</a>
+
+    <div class="nav-section-label">API Reference</div>
+    <a class="nav-link" href="#display"><div class="nav-dot"></div>Display</a>
+    <a class="nav-link" href="#drawing"><div class="nav-dot"></div>Drawing</a>
+    <a class="nav-link" href="#text"><div class="nav-dot"></div>Text & Fonts</a>
+    <a class="nav-link" href="#input"><div class="nav-dot"></div>Input</a>
+    <a class="nav-link" href="#ble"><div class="nav-dot"></div>BLE & Messaging</a>
+    <a class="nav-link" href="#time"><div class="nav-dot"></div>Time & Debug</a>
+
+    <div class="nav-section-label">Guides</div>
+    <a class="nav-link" href="#guide-menu"><div class="nav-dot"></div>Building a Menu</a>
+    <a class="nav-link" href="#guide-sms"><div class="nav-dot"></div>SMS App</a>
+    <a class="nav-link" href="#guide-anim"><div class="nav-dot"></div>Animation Loop</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">NFX OS · Developer Reference</div>
+    <h1>Build apps for<br><span>NFX OS</span></h1>
+    <p class="hero-desc">
+      Complete reference for the <code style="font-family:var(--mono);font-size:13px;color:var(--accent)">NFXAPI</code> interface and the <code style="font-family:var(--mono);font-size:13px;color:var(--accent)">App</code> class. Everything an app sees and can do is mediated through this API — no direct hardware access.
+    </p>
+    <div class="hero-chips">
+      <div class="chip">ESP32-C3</div>
+      <div class="chip">200×200 e-ink</div>
+      <div class="chip">3-button input</div>
+      <div class="chip">BLE client</div>
+      <div class="chip">Arduino framework</div>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section class="section section-anchor" id="overview">
+    <div class="section-header">
+      <div class="section-icon">◈</div>
+      <div class="section-title">Overview</div>
+    </div>
+
+    <div class="guide-grid">
+      <div class="guide-box">
+        <div class="guide-box-title">What is NFX OS?</div>
+        <p>NFX OS is a minimal app runtime running on an ESP32-C3 with a 1.54" SSD1681 e-ink display. A host app manages the launcher and BLE connection. Developer apps plug in as <code style="font-family:var(--mono);color:var(--accent2);font-size:11px">App</code> subclasses.</p>
+      </div>
+      <div class="guide-box">
+        <div class="guide-box-title">Sandboxing</div>
+        <p>Apps operate exclusively through <code style="font-family:var(--mono);color:var(--accent2);font-size:11px">NFXAPI*</code>. Direct GPIO, CPU, memory, or storage access is intentionally withheld to keep apps safe and portable.</p>
+      </div>
+      <div class="guide-box">
+        <div class="guide-box-title">Display model</div>
+        <p>The display is 1-bit (black/white). All drawing happens to an in-memory frame buffer. Call <code style="font-family:var(--mono);color:var(--accent);font-size:11px">refresh()</code> to push to hardware. Refreshes are slow — batch your draws.</p>
+      </div>
+      <div class="guide-box">
+        <div class="guide-box-title">Color convention</div>
+        <p><code style="font-family:var(--mono);color:var(--accent2);font-size:11px">c = 0</code> → white (paper). <code style="font-family:var(--mono);color:var(--accent2);font-size:11px">c = 1</code> → black (ink). All drawing calls default to black. Pass <code style="font-family:var(--mono);color:var(--accent2);font-size:11px">0</code> to draw white (erase).</p>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <strong>Coordinate system</strong>
+      Origin <code style="font-family:var(--mono)">(0, 0)</code> is the top-left corner. X increases rightward, Y increases downward. The canvas is 200×200 pixels.
+    </div>
+  </section>
+
+  <!-- QUICKSTART -->
+  <section class="section section-anchor" id="quickstart">
+    <div class="section-header">
+      <div class="section-icon">▷</div>
+      <div class="section-title">App Skeleton</div>
+    </div>
+
+    <p style="font-size:13px;color:#9a948c;margin-bottom:20px;">Every NFX app is a single <code style="font-family:var(--mono);color:var(--accent);font-size:12px">.h</code> file that inherits from <code style="font-family:var(--mono);color:var(--accent);font-size:12px">App</code> and implements four methods. Create the file in the same Arduino sketch folder as <code style="font-family:var(--mono);color:var(--accent);font-size:12px">NFX.ino</code>, then add it to the <code style="font-family:var(--mono);color:var(--accent);font-size:12px">myApps[]</code> array.</p>
+
+    <div class="full-example">
+      <div class="full-example-header">
+        <span class="full-example-title">App_MyApp.h — minimal skeleton</span>
+        <span class="full-example-lang">C++</span>
+      </div>
+      <pre><span class="kw">#pragma once</span>
+<span class="kw">#include</span> <span class="str">"NFX_API.h"</span>
+
+<span class="kw">class</span> <span class="ty">AppMyApp</span> : <span class="kw">public</span> <span class="ty">App</span> {
+<span class="kw">private</span>:
+    <span class="ty">NFXAPI</span>* api;
+
+<span class="kw">public</span>:
+    <span class="ty">String</span> <span class="fn">getName</span>() <span class="kw">override</span> {
+        <span class="kw">return</span> <span class="str">"My App"</span>;
+    }
+
+    <span class="kw">void</span> <span class="fn">onStart</span>(<span class="ty">NFXAPI</span>* a) <span class="kw">override</span> {
+        api = a;
+        api-><span class="fn">clear</span>();
+        api-><span class="fn">text</span>(<span class="nu">10</span>, <span class="nu">10</span>, <span class="str">"Hello NFX"</span>, <span class="nu">2</span>);
+        api-><span class="fn">refresh</span>();
+    }
+
+    <span class="kw">void</span> <span class="fn">onLoop</span>() <span class="kw">override</span> {
+        <span class="cm">// called every ~10ms by the OS</span>
+        <span class="kw">if</span> (api-><span class="fn">btnSel</span>()) {
+            api-><span class="fn">clear</span>();
+            api-><span class="fn">text</span>(<span class="nu">10</span>, <span class="nu">90</span>, <span class="str">"Selected!"</span>, <span class="nu">1</span>);
+            api-><span class="fn">refresh</span>();
+        }
+    }
+
+    <span class="kw">void</span> <span class="fn">onStop</span>() <span class="kw">override</span> {
+        <span class="cm">// clean up any state here</span>
+    }
+};</pre>
+    </div>
+
+    <div class="callout">
+      <strong>Registering the app</strong>
+      Open <code style="font-family:var(--mono)">NFX.ino</code> and add your app to the launcher array:<br>
+      <code style="font-family:var(--mono);font-size:12px;color:var(--accent)">#include "App_MyApp.h"</code><br>
+      <code style="font-family:var(--mono);font-size:12px;color:var(--accent)">AppMyApp myApp;</code><br>
+      <code style="font-family:var(--mono);font-size:12px;color:var(--accent)">App* myApps[] = { &amp;clockApp, &amp;myApp };</code>
+    </div>
+  </section>
+
+  <!-- LIFECYCLE -->
+  <section class="section section-anchor" id="lifecycle">
+    <div class="section-header">
+      <div class="section-icon">⟳</div>
+      <div class="section-title">App Lifecycle</div>
+    </div>
+
+    <div class="guide-grid">
+      <div class="guide-box">
+        <div class="guide-box-title">getName()</div>
+        <p>Returns the label shown in the OS launcher. Keep it short (≤12 chars) to fit in the menu without clipping.</p>
+      </div>
+      <div class="guide-box">
+        <div class="guide-box-title">onStart(api)</div>
+        <p>Called once when the user launches your app. Store the <code style="font-family:var(--mono);color:var(--accent2);font-size:11px">api</code> pointer, draw your initial frame and call <code style="font-family:var(--mono);color:var(--accent2);font-size:11px">refresh()</code>.</p>
+      </div>
+      <div class="guide-box">
+        <div class="guide-box-title">onLoop()</div>
+        <p>Called every ≈10 ms by the OS main loop. This is where you handle input, update state, and decide when to refresh the display.</p>
+      </div>
+      <div class="guide-box">
+        <div class="guide-box-title">onStop()</div>
+        <p>Called when the user holds UP+DOWN to return to the launcher. Release any resources and reset your internal state so the app can be restarted cleanly.</p>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <strong>Refresh cost</strong>
+      E-ink full refresh is ~2 seconds. Only call <code style="font-family:var(--mono)">refresh()</code> when content has actually changed. Using a dirty-flag variable is the recommended pattern.
+    </div>
+  </section>
+
+  <!-- DISPLAY -->
+  <section class="section section-anchor" id="display">
+    <div class="section-header">
+      <div class="section-icon">▣</div>
+      <div class="section-title">Display Control</div>
+      <div class="section-count">3 functions</div>
+    </div>
+
+    <!-- dispOn -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">dispOn</span>()</div>
+        <span class="cat-tag cat-display">display</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Powers up the e-ink display hardware and initialises SPI. Called automatically by the OS at boot — apps generally don't need to call this unless they have powered the display off intentionally.</div>
+      </div>
+    </div>
+
+    <!-- dispOff -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">dispOff</span>()</div>
+        <span class="cat-tag cat-display">display</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Sends the display into deep sleep (hibernate). The last frame remains visible on the e-ink panel. Use when the device will be idle for an extended period to save power.</div>
+      </div>
+    </div>
+
+    <!-- refresh -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">refresh</span>()</div>
+        <span class="cat-tag cat-display">display</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Flushes the in-memory frame buffer to the physical display. This triggers a full e-ink refresh cycle (~2 s). All drawing calls before <code style="font-family:var(--mono)">refresh()</code> are invisible to the user.</div>
+        <div class="example-block">
+          <div class="example-label">Example — dirty flag pattern</div>
+          <pre><span class="kw">bool</span> dirty = <span class="kw">false</span>;
+
+<span class="kw">void</span> <span class="fn">onLoop</span>() {
+    <span class="kw">if</span> (api-><span class="fn">btnUp</span>()) {
+        api-><span class="fn">clear</span>();
+        api-><span class="fn">text</span>(<span class="nu">10</span>, <span class="nu">10</span>, <span class="str">"UP pressed"</span>, <span class="nu">1</span>);
+        dirty = <span class="kw">true</span>;
+    }
+    <span class="kw">if</span> (dirty) { api-><span class="fn">refresh</span>(); dirty = <span class="kw">false</span>; }
+}</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DRAWING -->
+  <section class="section section-anchor" id="drawing">
+    <div class="section-header">
+      <div class="section-icon">✦</div>
+      <div class="section-title">Drawing</div>
+      <div class="section-count">12 functions</div>
+    </div>
+
+    <!-- clear -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">clear</span>(<span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 0</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Fills the entire frame buffer with the given color. <code style="font-family:var(--mono)">clear(0)</code> → white canvas. <code style="font-family:var(--mono)">clear(1)</code> → black canvas.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">c</td><td class="param-type">uint8_t</td><td class="param-def">0</td><td class="param-desc">Fill color. 0 = white, 1 = black.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- pixel -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">pixel</span>(<span class="fn-param">int</span> <span class="nm">x</span>, <span class="fn-param">int</span> <span class="nm">y</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Sets a single pixel. Useful for custom rendering or per-pixel effects. Out-of-bounds coordinates are silently ignored.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">x, y</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Pixel coordinates (0–199).</td></tr>
+          <tr><td class="param-name">c</td><td class="param-type">uint8_t</td><td class="param-def">1</td><td class="param-desc">Color. 0 = white, 1 = black.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- line -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">line</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">x1</span>, <span class="fn-param">int</span> <span class="nm">y1</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a straight line using Bresenham's algorithm. Supports any angle. Can also be used as a single horizontal or vertical rule.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">x0, y0</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Start point.</td></tr>
+          <tr><td class="param-name">x1, y1</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">End point.</td></tr>
+          <tr><td class="param-name">c</td><td class="param-type">uint8_t</td><td class="param-def">1</td><td class="param-desc">Color.</td></tr>
+        </table>
+        <div class="example-block">
+          <div class="example-label">Example</div>
+          <pre>api-><span class="fn">line</span>(<span class="nu">0</span>, <span class="nu">100</span>, <span class="nu">200</span>, <span class="nu">100</span>);  <span class="cm">// horizontal divider</span>
+api-><span class="fn">line</span>(<span class="nu">0</span>, <span class="nu">0</span>, <span class="nu">200</span>, <span class="nu">200</span>);    <span class="cm">// diagonal</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- rect -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">rect</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">x1</span>, <span class="fn-param">int</span> <span class="nm">y1</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a filled rectangle from corner <code style="font-family:var(--mono)">(x0,y0)</code> to corner <code style="font-family:var(--mono)">(x1,y1)</code>. Coordinates are automatically sorted, so order doesn't matter.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">x0, y0</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">First corner.</td></tr>
+          <tr><td class="param-name">x1, y1</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Opposite corner.</td></tr>
+          <tr><td class="param-name">c</td><td class="param-type">uint8_t</td><td class="param-def">1</td><td class="param-desc">Fill color.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- outline -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">outline</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">x1</span>, <span class="fn-param">int</span> <span class="nm">y1</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws the border of a rectangle (1-pixel thick) without filling the interior. Use in combination with <code style="font-family:var(--mono)">rect()</code> and color 0 to draw hollow boxes.</div>
+      </div>
+    </div>
+
+    <!-- circle / circleFill -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">circle</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">r</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a circle outline (1-pixel thick) centered at <code style="font-family:var(--mono)">(x0, y0)</code> with the given radius.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">x0, y0</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Center of the circle.</td></tr>
+          <tr><td class="param-name">r</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Radius in pixels.</td></tr>
+          <tr><td class="param-name">c</td><td class="param-type">uint8_t</td><td class="param-def">1</td><td class="param-desc">Color.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">circleFill</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">r</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a filled disc. Identical parameters to <code style="font-family:var(--mono)">circle()</code> but fills all interior pixels.</div>
+        <div class="example-block">
+          <div class="example-label">Example — radio button</div>
+          <pre>api-><span class="fn">circle</span>(<span class="nu">20</span>, <span class="nu">20</span>, <span class="nu">8</span>);           <span class="cm">// outer ring</span>
+api-><span class="fn">circleFill</span>(<span class="nu">20</span>, <span class="nu">20</span>, <span class="nu">4</span>);       <span class="cm">// selected dot</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- triangle / triangleFill -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">triangle</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">x1</span>, <span class="fn-param">int</span> <span class="nm">y1</span>, <span class="fn-param">int</span> <span class="nm">x2</span>, <span class="fn-param">int</span> <span class="nm">y2</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a triangle outline connecting three points.</div>
+      </div>
+    </div>
+
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">triangleFill</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">x1</span>, <span class="fn-param">int</span> <span class="nm">y1</span>, <span class="fn-param">int</span> <span class="nm">x2</span>, <span class="fn-param">int</span> <span class="nm">y2</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a filled triangle. Useful for icons, arrows, and progress indicators.</div>
+        <div class="example-block">
+          <div class="example-label">Example — down-arrow icon</div>
+          <pre>api-><span class="fn">triangleFill</span>(<span class="nu">95</span>, <span class="nu">190</span>, <span class="nu">105</span>, <span class="nu">190</span>, <span class="nu">100</span>, <span class="nu">198</span>);</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- roundRect -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">roundRect</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">x1</span>, <span class="fn-param">int</span> <span class="nm">y1</span>, <span class="fn-param">int</span> <span class="nm">r</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a rounded rectangle outline. <code style="font-family:var(--mono)">r</code> is the corner radius in pixels.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">x0, y0 / x1, y1</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Bounding box corners.</td></tr>
+          <tr><td class="param-name">r</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Corner radius (pixels).</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">roundRectFill</span>(<span class="fn-param">int</span> <span class="nm">x0</span>, <span class="fn-param">int</span> <span class="nm">y0</span>, <span class="fn-param">int</span> <span class="nm">x1</span>, <span class="fn-param">int</span> <span class="nm">y1</span>, <span class="fn-param">int</span> <span class="nm">r</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a filled rounded rectangle. Great for button backgrounds and notification cards.</div>
+        <div class="example-block">
+          <div class="example-label">Example — notification card</div>
+          <pre>api-><span class="fn">roundRectFill</span>(<span class="nu">8</span>, <span class="nu">8</span>, <span class="nu">192</span>, <span class="nu">50</span>, <span class="nu">6</span>);    <span class="cm">// black bg</span>
+api-><span class="fn">text</span>(<span class="nu">16</span>, <span class="nu">18</span>, <span class="str">"New Message"</span>, <span class="nu">1</span>, <span class="nu">0</span>);   <span class="cm">// white text</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- image -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">image</span>(<span class="fn-param">int</span> <span class="nm">x</span>, <span class="fn-param">int</span> <span class="nm">y</span>, <span class="fn-param">const uint8_t*</span> <span class="nm">data</span>, <span class="fn-param">int</span> <span class="nm">w</span>, <span class="fn-param">int</span> <span class="nm">h</span>, <span class="fn-param">bool</span> <span class="nm">inv</span> <span class="fn-default">= false</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Draws a monochrome bitmap from a byte array. The first byte is a format flag: <code style="font-family:var(--mono)">0</code> = standard bit-packed, <code style="font-family:var(--mono)">1</code> = RLE-compressed. Set <code style="font-family:var(--mono)">inv = true</code> to invert colors on draw.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">x, y</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Top-left position to draw the image.</td></tr>
+          <tr><td class="param-name">data</td><td class="param-type">const uint8_t*</td><td class="param-def">—</td><td class="param-desc">Pointer to byte array (PROGMEM recommended).</td></tr>
+          <tr><td class="param-name">w, h</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Image dimensions in pixels.</td></tr>
+          <tr><td class="param-name">inv</td><td class="param-type">bool</td><td class="param-def">false</td><td class="param-desc">Invert black/white before drawing.</td></tr>
+        </table>
+        <div class="callout">
+          <strong>PROGMEM</strong>
+          Store large image arrays in flash with <code style="font-family:var(--mono)">const uint8_t myImg[] PROGMEM = { ... };</code> to avoid consuming RAM.
+        </div>
+      </div>
+    </div>
+
+    <!-- invert / getPixel -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">invert</span>() &nbsp;&nbsp;|&nbsp;&nbsp; <span class="fn-type">uint8_t</span> <span class="fn-name">getPixel</span>(<span class="fn-param">int</span> <span class="nm">x</span>, <span class="fn-param">int</span> <span class="nm">y</span>)</div>
+        <span class="cat-tag cat-display">drawing</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc"><code style="font-family:var(--mono)">invert()</code> flips every pixel in the frame buffer (black↔white). Useful for a "selected" highlight effect on the whole screen. <code style="font-family:var(--mono)">getPixel(x, y)</code> reads the current buffer value at a coordinate — returns <code style="font-family:var(--mono)">1</code> (black) or <code style="font-family:var(--mono)">0</code> (white).</div>
+        <div class="returns"><span>returns</span> uint8_t — 0 or 1</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEXT & FONTS -->
+  <section class="section section-anchor" id="text">
+    <div class="section-header">
+      <div class="section-icon">Aa</div>
+      <div class="section-title">Text & Fonts</div>
+      <div class="section-count">4 functions</div>
+    </div>
+
+    <!-- text -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">text</span>(<span class="fn-param">int</span> <span class="nm">x</span>, <span class="fn-param">int</span> <span class="nm">y</span>, <span class="fn-param">const char*</span> <span class="nm">t</span>, <span class="fn-param">uint8_t</span> <span class="nm">sz</span>, <span class="fn-param">uint8_t</span> <span class="nm">c</span> <span class="fn-default">= 1</span>)</div>
+        <span class="cat-tag cat-display">text</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Renders a C-string into the frame buffer using the currently active Adafruit GFX font. When no custom font is set, uses the built-in 5×7 pixel font. <code style="font-family:var(--mono)">sz</code> is a pixel-font scale multiplier (1 = normal, 2 = double, etc.).</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td class="param-name">x, y</td><td class="param-type">int</td><td class="param-def">—</td><td class="param-desc">Top-left origin for the text baseline.</td></tr>
+          <tr><td class="param-name">t</td><td class="param-type">const char*</td><td class="param-def">—</td><td class="param-desc">Null-terminated string to draw.</td></tr>
+          <tr><td class="param-name">sz</td><td class="param-type">uint8_t</td><td class="param-def">—</td><td class="param-desc">Scale factor (1–4 recommended).</td></tr>
+          <tr><td class="param-name">c</td><td class="param-type">uint8_t</td><td class="param-def">1</td><td class="param-desc">Text color. 0 = white on black.</td></tr>
+        </table>
+        <div class="example-block">
+          <div class="example-label">Example — rendering dynamic values</div>
+          <pre><span class="kw">char</span> buf[<span class="nu">16</span>];
+<span class="fn">snprintf</span>(buf, <span class="kw">sizeof</span>(buf), <span class="str">"T: %lu ms"</span>, api-><span class="fn">now</span>());
+api-><span class="fn">text</span>(<span class="nu">5</span>, <span class="nu">5</span>, buf, <span class="nu">1</span>);</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- setFont / clearFont -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">setFont</span>(<span class="fn-param">const GFXfont*</span> <span class="nm">font</span>) &nbsp;|&nbsp; <span class="fn-type">void</span> <span class="fn-name">clearFont</span>()</div>
+        <span class="cat-tag cat-display">text</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Switches to a custom Adafruit GFX proportional font. Include the font header from <code style="font-family:var(--mono)">&lt;Fonts/FreeMono9pt7b.h&gt;</code> (or any other GFX font) and pass its address. Call <code style="font-family:var(--mono)">clearFont()</code> to revert to the built-in bitmap font.</div>
+        <div class="example-block">
+          <div class="example-label">Example</div>
+          <pre><span class="kw">#include</span> <span class="str">&lt;Fonts/FreeSans9pt7b.h&gt;</span>
+
+api-><span class="fn">setFont</span>(&amp;FreeSans9pt7b);
+api-><span class="fn">text</span>(<span class="nu">10</span>, <span class="nu">30</span>, <span class="str">"Proportional!"</span>, <span class="nu">1</span>);
+api-><span class="fn">clearFont</span>();
+api-><span class="fn">text</span>(<span class="nu">10</span>, <span class="nu">60</span>, <span class="str">"Back to pixel font"</span>, <span class="nu">1</span>);</pre>
+        </div>
+        <div class="callout info">
+          <strong>Note</strong>
+          When using proportional fonts the <code style="font-family:var(--mono)">y</code> coordinate is the text <em>baseline</em>, not the top edge. Use <code style="font-family:var(--mono)">textBounds()</code> to measure height before positioning.
+        </div>
+      </div>
+    </div>
+
+    <!-- textBounds -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">textBounds</span>(<span class="fn-param">const char*</span> <span class="nm">t</span>, <span class="fn-param">int</span> <span class="nm">x</span>, <span class="fn-param">int</span> <span class="nm">y</span>, <span class="fn-param">int16_t*</span> bx, <span class="fn-param">int16_t*</span> by, <span class="fn-param">uint16_t*</span> bw, <span class="fn-param">uint16_t*</span> bh)</div>
+        <span class="cat-tag cat-display">text</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Measures the bounding box of a string without drawing it. Useful for centering text or drawing a background highlight behind it.</div>
+        <div class="example-block">
+          <div class="example-label">Example — horizontally centered text</div>
+          <pre><span class="kw">int16_t</span> bx, by; <span class="kw">uint16_t</span> bw, bh;
+api-><span class="fn">textBounds</span>(<span class="str">"Hello"</span>, <span class="nu">0</span>, <span class="nu">0</span>, &amp;bx, &amp;by, &amp;bw, &amp;bh);
+<span class="kw">int</span> cx = (<span class="nu">200</span> - bw) / <span class="nu">2</span>;
+api-><span class="fn">text</span>(cx, <span class="nu">90</span>, <span class="str">"Hello"</span>, <span class="nu">1</span>);</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INPUT -->
+  <section class="section section-anchor" id="input">
+    <div class="section-header">
+      <div class="section-icon">⊙</div>
+      <div class="section-title">Input</div>
+      <div class="section-count">9 functions</div>
+    </div>
+
+    <div class="callout info">
+      <strong>Three event types per button</strong>
+      Each physical button exposes three event functions: <strong>press</strong> (rising edge, fires once), <strong>held</strong> (raw level, true while held), and <strong>release</strong> (falling edge, fires once). The OS calls <code style="font-family:var(--mono)">sysApi.update()</code> before your <code style="font-family:var(--mono)">onLoop()</code>, so state is always fresh.
+    </div>
+
+    <!-- btnUp -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig">
+          <span class="fn-type">bool</span> <span class="fn-name">btnUp</span>() &nbsp;·&nbsp;
+          <span class="fn-type">bool</span> <span class="fn-name">btnUpHeld</span>() &nbsp;·&nbsp;
+          <span class="fn-type">bool</span> <span class="fn-name">btnUpRel</span>()
+        </div>
+        <span class="cat-tag cat-input">input</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">
+          <strong style="color:var(--text)">btnUp()</strong> — Returns <code style="font-family:var(--mono)">true</code> on the single loop tick when UP is first pressed (rising edge). Use for navigation and discrete actions.<br><br>
+          <strong style="color:var(--text)">btnUpHeld()</strong> — Returns <code style="font-family:var(--mono)">true</code> every tick while UP is physically held down. Use for scroll acceleration or hold-to-repeat.<br><br>
+          <strong style="color:var(--text)">btnUpRel()</strong> — Returns <code style="font-family:var(--mono)">true</code> on the single tick when UP is released. Use for swipe-end or drag-end detection.
+        </div>
+        <div class="returns"><span>returns</span> bool</div>
+        <div class="example-block">
+          <div class="example-label">Example — hold to scroll fast</div>
+          <pre><span class="kw">static</span> <span class="ty">uint32_t</span> heldSince = <span class="nu">0</span>;
+
+<span class="kw">if</span> (api-><span class="fn">btnUp</span>())     { scroll(<span class="nu">-1</span>); heldSince = api-><span class="fn">now</span>(); }
+<span class="kw">if</span> (api-><span class="fn">btnUpHeld</span>() && api-><span class="fn">elapsed</span>(heldSince) > <span class="nu">600</span>)
+    scroll(<span class="nu">-3</span>);</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- btnSel -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig">
+          <span class="fn-type">bool</span> <span class="fn-name">btnSel</span>() &nbsp;·&nbsp;
+          <span class="fn-type">bool</span> <span class="fn-name">btnSelHeld</span>() &nbsp;·&nbsp;
+          <span class="fn-type">bool</span> <span class="fn-name">btnSelRel</span>()
+        </div>
+        <span class="cat-tag cat-input">input</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">The center/select button. <code style="font-family:var(--mono)">btnSel()</code> is the primary "confirm" action. <code style="font-family:var(--mono)">btnSelHeld()</code> is useful for long-press context actions. <code style="font-family:var(--mono)">btnSelRel()</code> fires when the button is released after a press.</div>
+        <div class="returns"><span>returns</span> bool</div>
+      </div>
+    </div>
+
+    <!-- btnDown -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig">
+          <span class="fn-type">bool</span> <span class="fn-name">btnDown</span>() &nbsp;·&nbsp;
+          <span class="fn-type">bool</span> <span class="fn-name">btnDownHeld</span>() &nbsp;·&nbsp;
+          <span class="fn-type">bool</span> <span class="fn-name">btnDownRel</span>()
+        </div>
+        <span class="cat-tag cat-input">input</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">The down/next button. Mirrors the same three event types as btnUp but in the downward direction.</div>
+        <div class="returns"><span>returns</span> bool</div>
+        <div class="callout">
+          <strong>OS shortcut</strong>
+          Holding UP + DOWN simultaneously at any time exits the current app and returns to the launcher. Do not rely on that combination for in-app actions.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLE -->
+  <section class="section section-anchor" id="ble">
+    <div class="section-header">
+      <div class="section-icon">⌾</div>
+      <div class="section-title">BLE & Messaging</div>
+      <div class="section-count">9 functions</div>
+    </div>
+
+    <div class="callout info">
+      <strong>BLE is managed by the OS</strong>
+      At boot the OS initialises BLE and calls <code style="font-family:var(--mono)">AutoCoBle()</code>. The main loop also blocks until a connection is established. Apps can check connection status and send commands, but do not need to manage scanning/connecting themselves under normal conditions.
+    </div>
+
+    <!-- bleIsConnected -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">bool</span> <span class="fn-name">bleIsConnected</span>()</div>
+        <span class="cat-tag cat-ble">ble</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Returns <code style="font-family:var(--mono)">true</code> if a BLE connection to the Android companion app is currently active. Always check this before calling any messaging function.</div>
+        <div class="returns"><span>returns</span> bool</div>
+      </div>
+    </div>
+
+    <!-- bleOn / bleOff -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">bleOn</span>() &nbsp;|&nbsp; <span class="fn-type">void</span> <span class="fn-name">bleOff</span>()</div>
+        <span class="cat-tag cat-ble">ble</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Initialises (<code style="font-family:var(--mono)">bleOn</code>) or fully shuts down (<code style="font-family:var(--mono)">bleOff</code>) the BLE stack. <code style="font-family:var(--mono)">bleOff</code> also disconnects any active session. Only call these if your app has a specific power management use-case.</div>
+      </div>
+    </div>
+
+    <!-- bleConnect / bleAutoConnect / bleDisconnect -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig">
+          <span class="fn-type">void</span> <span class="fn-name">bleConnect</span>(<span class="fn-param">String</span> <span class="nm">name</span>) &nbsp;·&nbsp;
+          <span class="fn-type">void</span> <span class="fn-name">bleAutoConnect</span>() &nbsp;·&nbsp;
+          <span class="fn-type">void</span> <span class="fn-name">bleDisconnect</span>()
+        </div>
+        <span class="cat-tag cat-ble">ble</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">
+          <strong style="color:var(--text)">bleConnect(name)</strong> — Scans and connects to a device by its advertised Bluetooth name.<br><br>
+          <strong style="color:var(--text)">bleAutoConnect()</strong> — Scans and connects to the first device advertising the NFX service UUID. This is what the OS uses at boot.<br><br>
+          <strong style="color:var(--text)">bleDisconnect()</strong> — Gracefully closes the active connection.
+        </div>
+        <div class="example-block">
+          <div class="example-label">Example — reconnect flow</div>
+          <pre><span class="kw">void</span> <span class="fn">onLoop</span>() {
+    <span class="kw">if</span> (!api-><span class="fn">bleIsConnected</span>()) {
+        api-><span class="fn">clear</span>();
+        api-><span class="fn">text</span>(<span class="nu">30</span>, <span class="nu">90</span>, <span class="str">"Reconnecting..."</span>, <span class="nu">1</span>);
+        api-><span class="fn">refresh</span>();
+        api-><span class="fn">bleAutoConnect</span>();
+    }
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- sendSMS -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig"><span class="fn-type">void</span> <span class="fn-name">sendSMS</span>(<span class="fn-param">String</span> <span class="nm">phone</span>, <span class="fn-param">String</span> <span class="nm">msg</span>)</div>
+        <span class="cat-tag cat-ble">messaging</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Instructs the Android companion app to send an SMS. Transmits <code style="font-family:var(--mono)">phone + "|" + msg</code> over BLE characteristic <code style="font-family:var(--mono)">0xFEED-0001</code>. Does nothing if BLE is not connected.</div>
+        <table class="params-table">
+          <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+          <tr><td class="param-name">phone</td><td class="param-type">String</td><td class="param-desc">Recipient phone number as a string (e.g. <code style="font-family:var(--mono)">"+33612345678"</code>).</td></tr>
+          <tr><td class="param-name">msg</td><td class="param-type">String</td><td class="param-desc">Message body. Keep under ~160 chars for a single SMS segment.</td></tr>
+        </table>
+        <div class="example-block">
+          <div class="example-label">Example</div>
+          <pre><span class="kw">if</span> (api-><span class="fn">btnSel</span>() && api-><span class="fn">bleIsConnected</span>()) {
+    api-><span class="fn">sendSMS</span>(<span class="str">"+33600000000"</span>, <span class="str">"On my way!"</span>);
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- loadConv / loadAllConvs -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig">
+          <span class="fn-type">void</span> <span class="fn-name">loadConv</span>(<span class="fn-param">String</span> <span class="nm">phone</span>) &nbsp;|&nbsp;
+          <span class="fn-type">void</span> <span class="fn-name">loadAllConvs</span>()
+        </div>
+        <span class="cat-tag cat-ble">messaging</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">
+          <strong style="color:var(--text)">loadConv(phone)</strong> — Requests the conversation history for a specific number. The Android app will stream responses back via the notification characteristic.<br><br>
+          <strong style="color:var(--text)">loadAllConvs()</strong> — Requests the full list of SMS conversation threads. Responses arrive asynchronously over BLE notifications.
+        </div>
+        <div class="callout info">
+          <strong>Response handling</strong>
+          Responses from the Android app arrive via the BLE notify callback in <code style="font-family:var(--mono)">BleManager.cpp</code>. To use response data in your app you will need to expose it through a shared global or a callback hook — this is not yet part of the NFXAPI surface.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIME -->
+  <section class="section section-anchor" id="time">
+    <div class="section-header">
+      <div class="section-icon">◷</div>
+      <div class="section-title">Time & Debug</div>
+      <div class="section-count">4 functions</div>
+    </div>
+
+    <!-- now / elapsed -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig">
+          <span class="fn-type">uint32_t</span> <span class="fn-name">now</span>() &nbsp;|&nbsp;
+          <span class="fn-type">uint32_t</span> <span class="fn-name">elapsed</span>(<span class="fn-param">uint32_t</span> <span class="nm">since</span>)
+        </div>
+        <span class="cat-tag cat-time">time</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">
+          <strong style="color:var(--text)">now()</strong> — Returns milliseconds since device boot (wraps after ~49 days).<br><br>
+          <strong style="color:var(--text)">elapsed(since)</strong> — Convenience wrapper for <code style="font-family:var(--mono)">now() - since</code>. Use to measure durations without computing the subtraction manually.
+        </div>
+        <div class="returns"><span>returns</span> uint32_t — milliseconds</div>
+        <div class="example-block">
+          <div class="example-label">Example — rate-limited refresh</div>
+          <pre><span class="kw">static</span> <span class="ty">uint32_t</span> lastRefresh = <span class="nu">0</span>;
+
+<span class="kw">if</span> (api-><span class="fn">elapsed</span>(lastRefresh) > <span class="nu">5000</span>) {
+    drawClock();
+    api-><span class="fn">refresh</span>();
+    lastRefresh = api-><span class="fn">now</span>();
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- log / logln -->
+    <div class="fn-card" onclick="toggle(this)">
+      <div class="fn-card-head">
+        <div class="fn-sig">
+          <span class="fn-type">void</span> <span class="fn-name">log</span>(<span class="fn-param">String</span> <span class="nm">msg</span>) &nbsp;|&nbsp;
+          <span class="fn-type">void</span> <span class="fn-name">logln</span>(<span class="fn-param">String</span> <span class="nm">msg</span>)
+        </div>
+        <span class="cat-tag cat-time">debug</span>
+        <div class="fn-chevron">▶</div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Writes a message to the Serial port at 115200 baud. <code style="font-family:var(--mono)">log()</code> prints inline; <code style="font-family:var(--mono)">logln()</code> appends a newline. Use during development with the Arduino Serial Monitor.</div>
+        <div class="example-block">
+          <div class="example-label">Example</div>
+          <pre>api-><span class="fn">logln</span>(<span class="str">"App started"</span>);
+api-><span class="fn">log</span>(<span class="str">"BLE: "</span>);
+api-><span class="fn">logln</span>(api-><span class="fn">bleIsConnected</span>() ? <span class="str">"OK"</span> : <span class="str">"DISCONNECTED"</span>);</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GUIDE: MENU -->
+  <section class="section section-anchor" id="guide-menu">
+    <div class="section-header">
+      <div class="section-icon">≡</div>
+      <div class="section-title">Guide — Building a Scrollable Menu</div>
+    </div>
+
+    <p style="font-size:13px;color:#9a948c;margin-bottom:20px;">A pattern that covers most NFX apps: a scrollable list of items navigated with Up/Down and confirmed with Select.</p>
+
+    <div class="full-example">
+      <div class="full-example-header">
+        <span class="full-example-title">App_Menu.h</span>
+        <span class="full-example-lang">C++</span>
+      </div>
+      <pre><span class="kw">#pragma once</span>
+<span class="kw">#include</span> <span class="str">"NFX_API.h"</span>
+
+<span class="kw">class</span> <span class="ty">AppMenu</span> : <span class="kw">public</span> <span class="ty">App</span> {
+    <span class="ty">NFXAPI</span>* api;
+    <span class="kw">const char</span>* items[<span class="nu">5</span>] = { <span class="str">"Inbox"</span>, <span class="str">"Contacts"</span>, <span class="str">"Compose"</span>, <span class="str">"Settings"</span>, <span class="str">"About"</span> };
+    <span class="kw">int</span> sel = <span class="nu">0</span>;
+    <span class="kw">bool</span> dirty = <span class="kw">true</span>;
+
+    <span class="kw">void</span> <span class="fn">draw</span>() {
+        api-><span class="fn">clear</span>();
+        api-><span class="fn">text</span>(<span class="nu">4</span>, <span class="nu">4</span>, <span class="str">"MENU"</span>, <span class="nu">1</span>);
+        api-><span class="fn">line</span>(<span class="nu">0</span>, <span class="nu">16</span>, <span class="nu">200</span>, <span class="nu">16</span>);
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i < <span class="nu">5</span>; i++) {
+            <span class="kw">int</span> y = <span class="nu">24</span> + i * <span class="nu">20</span>;
+            <span class="kw">if</span> (i == sel) {
+                api-><span class="fn">rect</span>(<span class="nu">0</span>, y - <span class="nu">2</span>, <span class="nu">199</span>, y + <span class="nu">12</span>);
+                api-><span class="fn">text</span>(<span class="nu">8</span>, y, items[i], <span class="nu">1</span>, <span class="nu">0</span>);
+            } <span class="kw">else</span> {
+                api-><span class="fn">text</span>(<span class="nu">8</span>, y, items[i], <span class="nu">1</span>);
+            }
+        }
+        api-><span class="fn">refresh</span>();
+        dirty = <span class="kw">false</span>;
+    }
+
+<span class="kw">public</span>:
+    <span class="ty">String</span> <span class="fn">getName</span>() <span class="kw">override</span> { <span class="kw">return</span> <span class="str">"Menu"</span>; }
+
+    <span class="kw">void</span> <span class="fn">onStart</span>(<span class="ty">NFXAPI</span>* a) <span class="kw">override</span> { api = a; sel = <span class="nu">0</span>; dirty = <span class="kw">true</span>; <span class="fn">draw</span>(); }
+
+    <span class="kw">void</span> <span class="fn">onLoop</span>() <span class="kw">override</span> {
+        <span class="kw">if</span> (api-><span class="fn">btnDown</span>()) { sel = (sel + <span class="nu">1</span>) % <span class="nu">5</span>; dirty = <span class="kw">true</span>; }
+        <span class="kw">if</span> (api-><span class="fn">btnUp</span>())   { sel = (sel + <span class="nu">4</span>) % <span class="nu">5</span>; dirty = <span class="kw">true</span>; }
+        <span class="kw">if</span> (api-><span class="fn">btnSel</span>())  { <span class="cm">/* launch sub-screen for items[sel] */</span> }
+        <span class="kw">if</span> (dirty) <span class="fn">draw</span>();
+    }
+
+    <span class="kw">void</span> <span class="fn">onStop</span>() <span class="kw">override</span> {}
+};</pre>
+    </div>
+  </section>
+
+  <!-- GUIDE: SMS -->
+  <section class="section section-anchor" id="guide-sms">
+    <div class="section-header">
+      <div class="section-icon">✉</div>
+      <div class="section-title">Guide — Quick SMS App</div>
+    </div>
+
+    <p style="font-size:13px;color:#9a948c;margin-bottom:20px;">Send a pre-set SMS to a contact list using BLE, with connection status shown on screen.</p>
+
+    <div class="full-example">
+      <div class="full-example-header">
+        <span class="full-example-title">App_QuickSMS.h</span>
+        <span class="full-example-lang">C++</span>
+      </div>
+      <pre><span class="kw">#pragma once</span>
+<span class="kw">#include</span> <span class="str">"NFX_API.h"</span>
+
+<span class="kw">class</span> <span class="ty">AppQuickSMS</span> : <span class="kw">public</span> <span class="ty">App</span> {
+    <span class="ty">NFXAPI</span>* api;
+
+    <span class="kw">struct</span> <span class="ty">Contact</span> { <span class="kw">const char</span>* name; <span class="kw">const char</span>* phone; };
+    <span class="ty">Contact</span> contacts[<span class="nu">3</span>] = {
+        { <span class="str">"Alice"</span>,   <span class="str">"+33600000001"</span> },
+        { <span class="str">"Bob"</span>,     <span class="str">"+33600000002"</span> },
+        { <span class="str">"Charlie"</span>, <span class="str">"+33600000003"</span> }
+    };
+    <span class="kw">int</span>  sel    = <span class="nu">0</span>;
+    <span class="kw">bool</span> sent   = <span class="kw">false</span>;
+    <span class="ty">uint32_t</span> sentAt = <span class="nu">0</span>;
+
+    <span class="kw">void</span> <span class="fn">draw</span>() {
+        api-><span class="fn">clear</span>();
+        <span class="kw">if</span> (!api-><span class="fn">bleIsConnected</span>()) {
+            api-><span class="fn">roundRectFill</span>(<span class="nu">10</span>, <span class="nu">80</span>, <span class="nu">190</span>, <span class="nu">120</span>, <span class="nu">6</span>);
+            api-><span class="fn">text</span>(<span class="nu">30</span>, <span class="nu">92</span>, <span class="str">"No BLE connection"</span>, <span class="nu">1</span>, <span class="nu">0</span>);
+            api-><span class="fn">refresh</span>();
+            <span class="kw">return</span>;
+        }
+        api-><span class="fn">text</span>(<span class="nu">4</span>, <span class="nu">4</span>, <span class="str">"Quick SMS"</span>, <span class="nu">1</span>);
+        api-><span class="fn">line</span>(<span class="nu">0</span>, <span class="nu">16</span>, <span class="nu">200</span>, <span class="nu">16</span>);
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i < <span class="nu">3</span>; i++) {
+            <span class="kw">int</span> y = <span class="nu">28</span> + i * <span class="nu">22</span>;
+            <span class="kw">if</span> (i == sel) api-><span class="fn">roundRectFill</span>(<span class="nu">2</span>, y-<span class="nu">2</span>, <span class="nu">198</span>, y+<span class="nu">13</span>, <span class="nu">4</span>);
+            api-><span class="fn">text</span>(<span class="nu">10</span>, y, contacts[i].name, <span class="nu">1</span>, i == sel ? <span class="nu">0</span> : <span class="nu">1</span>);
+        }
+        <span class="kw">if</span> (sent) api-><span class="fn">text</span>(<span class="nu">40</span>, <span class="nu">160</span>, <span class="str">"Sent!"</span>, <span class="nu">2</span>);
+        api-><span class="fn">refresh</span>();
+    }
+
+<span class="kw">public</span>:
+    <span class="ty">String</span> <span class="fn">getName</span>() <span class="kw">override</span> { <span class="kw">return</span> <span class="str">"Quick SMS"</span>; }
+
+    <span class="kw">void</span> <span class="fn">onStart</span>(<span class="ty">NFXAPI</span>* a) <span class="kw">override</span> { api = a; sel = <span class="nu">0</span>; sent = <span class="kw">false</span>; <span class="fn">draw</span>(); }
+
+    <span class="kw">void</span> <span class="fn">onLoop</span>() <span class="kw">override</span> {
+        <span class="kw">bool</span> changed = <span class="kw">false</span>;
+        <span class="kw">if</span> (api-><span class="fn">btnDown</span>()) { sel = (sel+<span class="nu">1</span>)%<span class="nu">3</span>; changed = <span class="kw">true</span>; }
+        <span class="kw">if</span> (api-><span class="fn">btnUp</span>())   { sel = (sel+<span class="nu">2</span>)%<span class="nu">3</span>; changed = <span class="kw">true</span>; }
+        <span class="kw">if</span> (api-><span class="fn">btnSel</span>() && api-><span class="fn">bleIsConnected</span>()) {
+            api-><span class="fn">sendSMS</span>(contacts[sel].phone, <span class="str">"On my way!"</span>);
+            sent = <span class="kw">true</span>; sentAt = api-><span class="fn">now</span>(); changed = <span class="kw">true</span>;
+        }
+        <span class="kw">if</span> (sent && api-><span class="fn">elapsed</span>(sentAt) > <span class="nu">3000</span>) { sent = <span class="kw">false</span>; changed = <span class="kw">true</span>; }
+        <span class="kw">if</span> (changed) <span class="fn">draw</span>();
+    }
+
+    <span class="kw">void</span> <span class="fn">onStop</span>() <span class="kw">override</span> { sent = <span class="kw">false</span>; }
+};</pre>
+    </div>
+  </section>
+
+  <!-- GUIDE: ANIMATION -->
+  <section class="section section-anchor" id="guide-anim">
+    <div class="section-header">
+      <div class="section-icon">◌</div>
+      <div class="section-title">Guide — Animation Loop</div>
+    </div>
+
+    <p style="font-size:13px;color:#9a948c;margin-bottom:20px;">E-ink is slow to refresh, but you can still create effective animations by controlling update rate carefully.</p>
+
+    <div class="full-example">
+      <div class="full-example-header">
+        <span class="full-example-title">App_Spinner.h — loading indicator</span>
+        <span class="full-example-lang">C++</span>
+      </div>
+      <pre><span class="kw">#pragma once</span>
+<span class="kw">#include</span> <span class="str">"NFX_API.h"</span>
+
+<span class="kw">class</span> <span class="ty">AppSpinner</span> : <span class="kw">public</span> <span class="ty">App</span> {
+    <span class="ty">NFXAPI</span>* api;
+    <span class="ty">uint32_t</span> lastFrame = <span class="nu">0</span>;
+    <span class="kw">int</span> angle = <span class="nu">0</span>;
+    <span class="kw">const int</span> R  = <span class="nu">30</span>;
+    <span class="kw">const int</span> CX = <span class="nu">100</span>, CY = <span class="nu">100</span>;
+    <span class="kw">const int</span> FRAME_MS = <span class="nu">3000</span>;  <span class="cm">// new frame every 3 s</span>
+
+    <span class="kw">void</span> <span class="fn">draw</span>() {
+        <span class="kw">float</span> rad = angle * <span class="nu">3.14159f</span> / <span class="nu">180.0f</span>;
+        <span class="kw">int</span>   ex  = CX + (<span class="kw">int</span>)(R * cos(rad));
+        <span class="kw">int</span>   ey  = CY + (<span class="kw">int</span>)(R * sin(rad));
+        api-><span class="fn">clear</span>();
+        api-><span class="fn">circle</span>(CX, CY, R);
+        api-><span class="fn">circleFill</span>(ex, ey, <span class="nu">5</span>);
+        api-><span class="fn">text</span>(<span class="nu">72</span>, <span class="nu">140</span>, <span class="str">"Loading..."</span>, <span class="nu">1</span>);
+        api-><span class="fn">refresh</span>();
+    }
+
+<span class="kw">public</span>:
+    <span class="ty">String</span> <span class="fn">getName</span>() <span class="kw">override</span> { <span class="kw">return</span> <span class="str">"Spinner"</span>; }
+
+    <span class="kw">void</span> <span class="fn">onStart</span>(<span class="ty">NFXAPI</span>* a) <span class="kw">override</span> {
+        api = a; angle = <span class="nu">0</span>; lastFrame = a-><span class="fn">now</span>(); <span class="fn">draw</span>();
+    }
+
+    <span class="kw">void</span> <span class="fn">onLoop</span>() <span class="kw">override</span> {
+        <span class="kw">if</span> (api-><span class="fn">elapsed</span>(lastFrame) >= FRAME_MS) {
+            angle = (angle + <span class="nu">45</span>) % <span class="nu">360</span>;
+            lastFrame = api-><span class="fn">now</span>();
+            <span class="fn">draw</span>();
+        }
+    }
+
+    <span class="kw">void</span> <span class="fn">onStop</span>() <span class="kw">override</span> {}
+};</pre>
+    </div>
+
+    <div class="callout">
+      <strong>Tip</strong>
+      Keep per-frame draw calls as minimal as possible. Only redraw regions that actually changed using targeted <code style="font-family:var(--mono)">rect()</code> + <code style="font-family:var(--mono)">text()</code> calls instead of clearing the whole screen every frame.
+    </div>
+  </section>
+
+</main>
+
+<script>
+  function toggle(card) {
+    card.classList.toggle('open');
+  }
+
+  // Sidebar active link on scroll
+  const sections = document.querySelectorAll('.section-anchor');
+  const links = document.querySelectorAll('.nav-link');
+
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const id = e.target.id;
+        const active = document.querySelector(`.nav-link[href="#${id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
