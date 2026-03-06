@@ -1,0 +1,2350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFX OS — Developer Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F0EBE0;
+    --paper-2: #E4DFCF;
+    --ink: #0E0C08;
+    --ink-2: #2A261E;
+    --ink-3: #5A5444;
+    --gray: #9B9486;
+    --gray-2: #CCC8BC;
+    --accent: #0E0C08;
+    --serif: 'Newsreader', Georgia, serif;
+    --display: 'Darker Grotesque', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 18px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE ── */
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events:none;
+    z-index:9999;
+    opacity:1;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position:fixed;
+    top:0; left:0; right:0;
+    z-index:100;
+    padding:0 48px;
+    height:60px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom: 1px solid transparent;
+    transition: all 0.4s ease;
+  }
+  nav.scrolled {
+    background: rgba(240,235,224,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom-color: var(--gray-2);
+  }
+  .nav-logo {
+    font-family: var(--mono);
+    font-size:13px;
+    font-weight:500;
+    letter-spacing:0.05em;
+    color: var(--ink);
+    text-decoration:none;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .nav-logo-mark {
+    width:22px; height:22px;
+    border:2px solid var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:9px;
+    font-weight:700;
+  }
+  .nav-links {
+    display:flex;
+    gap:36px;
+    list-style:none;
+  }
+  .nav-links a {
+    font-family: var(--mono);
+    font-size:11.5px;
+    font-weight:400;
+    letter-spacing:0.08em;
+    color: var(--ink-3);
+    text-decoration:none;
+    text-transform:uppercase;
+    position:relative;
+    transition: color 0.2s;
+  }
+  .nav-links a::after {
+    content:'';
+    position:absolute;
+    bottom:-2px; left:0;
+    width:0; height:1px;
+    background:var(--ink);
+    transition: width 0.25s ease;
+  }
+  .nav-links a:hover { color:var(--ink); }
+  .nav-links a:hover::after { width:100%; }
+
+  /* ── HERO ── */
+  #hero {
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding: 120px 48px 80px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-eyebrow {
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--gray);
+    margin-bottom:28px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    opacity:0;
+    animation: fadeUp 0.8s 0.3s forwards;
+  }
+  .hero-eyebrow::before {
+    content:'';
+    display:block;
+    width:32px; height:1px;
+    background:var(--gray);
+  }
+  .hero-title {
+    font-family:var(--display);
+    font-size:clamp(72px, 10vw, 148px);
+    font-weight:900;
+    line-height:0.9;
+    letter-spacing:-0.03em;
+    color:var(--ink);
+    margin-bottom:12px;
+    opacity:0;
+    animation: fadeUp 0.9s 0.5s forwards;
+  }
+  .hero-title span {
+    display:block;
+    font-weight:300;
+    color:var(--ink-3);
+    font-style:italic;
+    font-family: var(--serif);
+    font-size:0.45em;
+    letter-spacing:0.01em;
+    line-height:1.3;
+    margin-top:8px;
+  }
+  .hero-desc {
+    max-width:560px;
+    font-size:17px;
+    color:var(--ink-3);
+    margin-bottom:52px;
+    margin-top:32px;
+    line-height:1.75;
+    opacity:0;
+    animation: fadeUp 0.9s 0.7s forwards;
+  }
+  .hero-cta {
+    display:flex;
+    gap:20px;
+    align-items:center;
+    flex-wrap:wrap;
+    opacity:0;
+    animation: fadeUp 0.9s 0.9s forwards;
+  }
+  .btn-primary {
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 32px;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:var(--mono);
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    text-decoration:none;
+    border:2px solid var(--ink);
+    cursor:pointer;
+    transition: all 0.25s ease;
+    position:relative;
+    overflow:hidden;
+  }
+  .btn-primary::before {
+    content:'';
+    position:absolute;
+    inset:0;
+    background:var(--paper);
+    transform:translateX(-101%);
+    transition:transform 0.3s ease;
+  }
+  .btn-primary:hover::before { transform:translateX(0); }
+  .btn-primary:hover { color:var(--ink); }
+  .btn-primary span { position:relative; z-index:1; }
+  .btn-secondary {
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:14px 32px;
+    background:transparent;
+    color:var(--ink-2);
+    font-family:var(--mono);
+    font-size:12px;
+    font-weight:400;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    text-decoration:none;
+    border:1px solid var(--gray-2);
+    cursor:pointer;
+    transition: all 0.25s ease;
+  }
+  .btn-secondary:hover { border-color:var(--ink); color:var(--ink); }
+
+  /* Hero decorative grid */
+  .hero-grid {
+    position:absolute;
+    right:-80px; top:50%;
+    transform:translateY(-50%);
+    width:480px; height:480px;
+    display:grid;
+    grid-template-columns: repeat(8,1fr);
+    gap:3px;
+    opacity:0;
+    animation: fadeIn 1.2s 1s forwards;
+  }
+  .hero-grid-cell {
+    aspect-ratio:1;
+    border:1px solid var(--gray-2);
+    transition:background 0.3s;
+  }
+  .hero-grid-cell.filled { background:var(--ink-2); }
+
+  /* Hero stats */
+  .hero-stats {
+    display:flex;
+    gap:48px;
+    margin-top:64px;
+    padding-top:40px;
+    border-top:1px solid var(--gray-2);
+    opacity:0;
+    animation: fadeUp 0.9s 1.1s forwards;
+  }
+  .stat-item { }
+  .stat-value {
+    font-family:var(--display);
+    font-size:38px;
+    font-weight:900;
+    line-height:1;
+    color:var(--ink);
+  }
+  .stat-label {
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--gray);
+    margin-top:4px;
+  }
+
+  /* ── SCROLL REVEAL ── */
+  .reveal {
+    opacity:0;
+    transform:translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.visible {
+    opacity:1;
+    transform:translateY(0);
+  }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+
+  /* ── SECTION BASE ── */
+  section { padding:100px 48px; }
+  .section-label {
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--gray);
+    margin-bottom:24px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .section-label::before {
+    content:'';
+    display:block;
+    width:20px; height:1px;
+    background:var(--gray);
+  }
+  .section-title {
+    font-family:var(--display);
+    font-size:clamp(40px,5vw,72px);
+    font-weight:900;
+    line-height:0.95;
+    letter-spacing:-0.02em;
+    color:var(--ink);
+    margin-bottom:24px;
+  }
+  .section-body {
+    font-size:17px;
+    color:var(--ink-3);
+    max-width:580px;
+    line-height:1.8;
+  }
+  .divider {
+    border:none;
+    border-top:1px solid var(--gray-2);
+    margin:0 48px;
+  }
+
+  /* ── ABOUT SECTION ── */
+  #about {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:80px;
+    align-items:center;
+  }
+  .about-visual {
+    position:relative;
+  }
+  .about-device-frame {
+    width:100%;
+    max-width:360px;
+    margin:0 auto;
+    background:var(--ink);
+    border-radius:20px;
+    padding:24px;
+    box-shadow:
+      0 40px 80px rgba(14,12,8,0.25),
+      0 0 0 1px rgba(255,255,255,0.04) inset;
+    position:relative;
+  }
+  .about-screen {
+    background:#E8E3D5;
+    border-radius:8px;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-2);
+    overflow:hidden;
+    position:relative;
+  }
+  .about-screen-inner {
+    padding:16px;
+    width:100%;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+  }
+  .screen-title-bar {
+    font-size:9px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    border-bottom:1px solid rgba(14,12,8,0.2);
+    padding-bottom:6px;
+    margin-bottom:8px;
+  }
+  .screen-row {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:5px 0;
+    border-bottom:1px solid rgba(14,12,8,0.06);
+    font-size:9px;
+  }
+  .screen-row.active {
+    background:var(--ink);
+    color:#E8E3D5;
+    padding:5px 6px;
+    margin:0 -16px;
+    padding-left:22px;
+  }
+  .screen-dot {
+    width:4px; height:4px;
+    background:currentColor;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+  .about-buttons {
+    position:absolute;
+    right:-16px;
+    top:50%;
+    transform:translateY(-50%);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .hw-btn {
+    width:20px; height:20px;
+    background:var(--ink-2);
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,0.1);
+    cursor:pointer;
+  }
+  .about-specs {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-top:20px;
+  }
+  .spec-tag {
+    font-family:var(--mono);
+    font-size:10px;
+    padding:6px 10px;
+    border:1px solid rgba(255,255,255,0.12);
+    color:rgba(255,255,255,0.5);
+    border-radius:4px;
+    letter-spacing:0.05em;
+  }
+
+  .about-content .section-body { max-width:460px; }
+
+  .feature-list {
+    list-style:none;
+    margin-top:36px;
+    display:flex;
+    flex-direction:column;
+    gap:0;
+  }
+  .feature-item {
+    display:flex;
+    align-items:flex-start;
+    gap:16px;
+    padding:20px 0;
+    border-bottom:1px solid var(--gray-2);
+  }
+  .feature-item:first-child { border-top:1px solid var(--gray-2); }
+  .feature-num {
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--gray);
+    flex-shrink:0;
+    padding-top:3px;
+  }
+  .feature-text {
+    font-size:15px;
+    color:var(--ink-2);
+    line-height:1.6;
+  }
+  .feature-text strong {
+    display:block;
+    font-family:var(--display);
+    font-weight:700;
+    font-size:17px;
+    color:var(--ink);
+    margin-bottom:2px;
+  }
+
+  /* ── DOCS LINK SECTION ── */
+  #docs {
+    background:var(--ink);
+    padding:80px 48px;
+    position:relative;
+    overflow:hidden;
+  }
+  #docs::before {
+    content:'API';
+    position:absolute;
+    right:-20px;
+    top:50%;
+    transform:translateY(-50%);
+    font-family:var(--display);
+    font-weight:900;
+    font-size:240px;
+    line-height:1;
+    color:rgba(255,255,255,0.03);
+    pointer-events:none;
+    letter-spacing:-0.05em;
+  }
+  .docs-inner {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:40px;
+    flex-wrap:wrap;
+    position:relative;
+  }
+  .docs-inner .section-label { color:rgba(255,255,255,0.35); }
+  .docs-inner .section-label::before { background:rgba(255,255,255,0.35); }
+  .docs-inner .section-title { color:#F0EBE0; font-size:clamp(36px,4vw,60px); }
+  .docs-desc {
+    font-size:16px;
+    color:rgba(240,235,224,0.55);
+    max-width:460px;
+    margin-top:12px;
+    line-height:1.75;
+  }
+  .docs-meta {
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-top:32px;
+  }
+  .docs-meta-item {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:rgba(240,235,224,0.4);
+    letter-spacing:0.05em;
+  }
+  .docs-meta-item::before {
+    content:'';
+    width:6px; height:6px;
+    border:1px solid rgba(240,235,224,0.2);
+    flex-shrink:0;
+  }
+  .btn-docs {
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+    padding:18px 40px;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    text-decoration:none;
+    transition:all 0.25s ease;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .btn-docs:hover { background:#fff; transform:translateY(-2px); box-shadow:0 12px 32px rgba(0,0,0,0.3); }
+  .btn-docs .arrow {
+    width:32px; height:1px;
+    background:currentColor;
+    position:relative;
+    transition:width 0.25s ease;
+  }
+  .btn-docs:hover .arrow { width:48px; }
+  .btn-docs .arrow::after {
+    content:'';
+    position:absolute;
+    right:0; top:50%;
+    transform:translateY(-50%) rotate(45deg);
+    width:6px; height:6px;
+    border-right:1px solid currentColor;
+    border-top:1px solid currentColor;
+  }
+
+  /* ── TOOLS SECTION ── */
+  #tools {
+    padding-top:100px;
+  }
+  .tools-header {
+    margin-bottom:64px;
+  }
+  .tools-grid {
+    display:flex;
+    flex-direction:column;
+    gap:0;
+  }
+
+  /* ── TOOL CARD ── */
+  .tool-card {
+    border:1px solid var(--gray-2);
+    border-radius:16px;
+    overflow:hidden;
+    margin-bottom:32px;
+    background:var(--paper);
+    box-shadow:0 2px 16px rgba(14,12,8,0.04);
+    transition: box-shadow 0.3s ease;
+  }
+  .tool-card:hover { box-shadow:0 8px 40px rgba(14,12,8,0.1); }
+  .tool-card-header {
+    padding:32px 40px;
+    border-bottom:1px solid var(--gray-2);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--paper-2);
+  }
+  .tool-card-title {
+    font-family:var(--display);
+    font-size:28px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    color:var(--ink);
+  }
+  .tool-card-subtitle {
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--gray);
+    letter-spacing:0.08em;
+    margin-top:4px;
+  }
+  .tool-badge {
+    font-family:var(--mono);
+    font-size:9px;
+    padding:4px 10px;
+    border:1px solid var(--gray-2);
+    color:var(--gray);
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    border-radius:20px;
+  }
+  .tool-card-body { padding:40px; }
+
+  /* ── IMAGE CONVERTER ── */
+  .converter-layout {
+    display:grid;
+    grid-template-columns:1fr 1fr 1.2fr;
+    gap:32px;
+    align-items:start;
+  }
+  .conv-panel {
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .conv-panel-title {
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    color:var(--gray);
+    margin-bottom:4px;
+  }
+  .upload-zone {
+    border:2px dashed var(--gray-2);
+    border-radius:12px;
+    padding:40px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:all 0.25s ease;
+    background:var(--paper);
+    position:relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color:var(--ink);
+    background:#F8F3E8;
+  }
+  .upload-zone input { display:none; }
+  .upload-icon {
+    width:40px; height:40px;
+    margin:0 auto 12px;
+    border:2px solid var(--gray-2);
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:border-color 0.25s;
+  }
+  .upload-zone:hover .upload-icon { border-color:var(--ink); }
+  .upload-icon svg { width:16px; height:16px; fill:var(--gray); }
+  .upload-zone:hover .upload-icon svg { fill:var(--ink); }
+  .upload-text {
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--gray);
+    letter-spacing:0.05em;
+  }
+  .upload-sub {
+    font-family:var(--mono);
+    font-size:9px;
+    color:var(--gray-2);
+    margin-top:6px;
+    letter-spacing:0.05em;
+  }
+  .preview-canvas-wrap {
+    border:1px solid var(--gray-2);
+    border-radius:8px;
+    overflow:hidden;
+    background:#E8E3D5;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .preview-canvas-wrap canvas {
+    max-width:100%;
+    max-height:100%;
+    image-rendering:pixelated;
+  }
+  .preview-placeholder {
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--gray-2);
+    text-align:center;
+    padding:20px;
+    letter-spacing:0.1em;
+  }
+  .conv-controls {
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .ctrl-row {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .ctrl-label {
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--ink-3);
+    letter-spacing:0.05em;
+    flex-shrink:0;
+  }
+  .ctrl-input {
+    background:var(--paper);
+    border:1px solid var(--gray-2);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:11px;
+    padding:6px 10px;
+    width:90px;
+    border-radius:4px;
+    text-align:right;
+    outline:none;
+    transition:border-color 0.2s;
+  }
+  .ctrl-input:focus { border-color:var(--ink); }
+  .ctrl-select {
+    background:var(--paper);
+    border:1px solid var(--gray-2);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:10px;
+    padding:6px 8px;
+    border-radius:4px;
+    outline:none;
+    transition:border-color 0.2s;
+    cursor:pointer;
+  }
+  .ctrl-select:focus { border-color:var(--ink); }
+  .convert-btn {
+    width:100%;
+    padding:12px;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:500;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    border:none;
+    cursor:pointer;
+    border-radius:6px;
+    transition:all 0.2s ease;
+    margin-top:8px;
+  }
+  .convert-btn:hover { background:var(--ink-2); transform:translateY(-1px); }
+  .convert-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+  .size-compare {
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .size-pill {
+    font-family:var(--mono);
+    font-size:10px;
+    padding:4px 10px;
+    border-radius:20px;
+    letter-spacing:0.05em;
+  }
+  .size-pill.winner {
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .size-pill.loser {
+    background:var(--paper-2);
+    color:var(--gray);
+    border:1px solid var(--gray-2);
+  }
+  .output-area {
+    background:#0E0C08;
+    border-radius:8px;
+    padding:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .output-pre {
+    font-family:var(--mono);
+    font-size:10.5px;
+    color:#C8C0B0;
+    white-space:pre;
+    overflow-x:auto;
+    max-height:220px;
+    line-height:1.6;
+  }
+  .output-pre .comment { color:#5A5444; }
+  .output-pre .type { color:#A09A8F; }
+  .output-pre .value { color:#F0EBE0; }
+  .copy-btn {
+    position:absolute;
+    top:12px; right:12px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.1);
+    color:rgba(200,192,176,0.7);
+    font-family:var(--mono);
+    font-size:9px;
+    padding:4px 10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    cursor:pointer;
+    border-radius:4px;
+    transition:all 0.2s;
+  }
+  .copy-btn:hover { background:rgba(255,255,255,0.12); color:#F0EBE0; }
+  .copy-btn.copied { color:#8FBF6A; border-color:#8FBF6A; }
+
+  /* ── APP EMULATOR ── */
+  .emulator-layout {
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:48px;
+    align-items:start;
+  }
+  .emulator-info {
+    max-width:440px;
+  }
+  .emulator-info p {
+    font-size:15px;
+    color:var(--ink-3);
+    line-height:1.75;
+    margin-bottom:20px;
+  }
+  .api-tags {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:12px;
+  }
+  .api-tag {
+    font-family:var(--mono);
+    font-size:9px;
+    padding:3px 9px;
+    border:1px solid var(--gray-2);
+    border-radius:3px;
+    color:var(--ink-3);
+    letter-spacing:0.05em;
+  }
+  .upload-h-btn {
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 24px;
+    border:2px solid var(--ink);
+    background:transparent;
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:500;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    cursor:pointer;
+    border-radius:6px;
+    transition:all 0.2s ease;
+    margin-top:24px;
+    width:100%;
+    justify-content:center;
+  }
+  .upload-h-btn:hover { background:var(--ink); color:var(--paper); }
+  .upload-h-input { display:none; }
+  .emulator-status {
+    margin-top:16px;
+    padding:12px 16px;
+    background:var(--paper-2);
+    border:1px solid var(--gray-2);
+    border-radius:6px;
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--gray);
+    letter-spacing:0.05em;
+    min-height:44px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    transition:all 0.3s;
+  }
+  .emulator-status.ok { color:#5A8A3A; border-color:#A0C87A; background:#F0F8E8; }
+  .emulator-status.err { color:#A03030; border-color:#D09090; background:#FFF0F0; }
+  .status-dot {
+    width:6px; height:6px;
+    border-radius:50%;
+    background:currentColor;
+    flex-shrink:0;
+  }
+
+  /* ── DEVICE MOCKUP ── */
+  .device-wrapper {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:20px;
+  }
+  .device-body {
+    background:linear-gradient(145deg, #2A261E, #1A160E);
+    border-radius:18px;
+    padding:18px 20px 18px 20px;
+    box-shadow:
+      0 40px 80px rgba(14,12,8,0.4),
+      0 0 0 1px rgba(255,255,255,0.05) inset,
+      0 -4px 0 rgba(0,0,0,0.3) inset;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    position:relative;
+  }
+  .device-screws {
+    position:absolute;
+    top:10px; left:10px; right:10px; bottom:10px;
+    pointer-events:none;
+  }
+  .device-screws::before,
+  .device-screws::after {
+    content:'+';
+    position:absolute;
+    font-size:8px;
+    color:rgba(255,255,255,0.07);
+    font-family:var(--mono);
+  }
+  .device-screws::before { top:0; left:0; }
+  .device-screws::after { bottom:0; right:0; }
+  .device-buttons {
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    align-items:center;
+    flex-shrink:0;
+  }
+  .dev-btn {
+    width:28px; height:28px;
+    border-radius:50%;
+    background:linear-gradient(145deg, #3A3630, #2A2620);
+    border:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:
+      0 3px 6px rgba(0,0,0,0.4),
+      0 0 0 1px rgba(255,255,255,0.07) inset;
+    transition:all 0.1s ease;
+    color:rgba(255,255,255,0.4);
+    font-size:10px;
+    user-select:none;
+    position:relative;
+  }
+  .dev-btn:active, .dev-btn.pressed {
+    transform:scale(0.92) translateY(1px);
+    box-shadow:0 1px 3px rgba(0,0,0,0.5);
+    background:linear-gradient(145deg, #2A2620, #1E1A12);
+    color:rgba(255,255,255,0.7);
+  }
+  .dev-btn-label {
+    font-family:var(--mono);
+    font-size:7px;
+    color:rgba(255,255,255,0.15);
+    text-align:center;
+    letter-spacing:0.05em;
+    margin-top:2px;
+  }
+  .dev-btn-group {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+  }
+  .screen-container {
+    position:relative;
+    border-radius:6px;
+    overflow:visible;
+  }
+  .screen-bezel {
+    background:#121008;
+    border-radius:10px;
+    padding:6px;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.05) inset;
+  }
+  #emuCanvas {
+    display:block;
+    border-radius:4px;
+    cursor:crosshair;
+    image-rendering:pixelated;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    width:200px;
+    height:200px;
+  }
+  .screen-bezel:hover #emuCanvas {
+    box-shadow:0 20px 40px rgba(0,0,0,0.5);
+  }
+  .screen-glare {
+    position:absolute;
+    top:6px; left:6px; right:6px;
+    height:40%;
+    background:linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+    border-radius:4px 4px 0 0;
+    pointer-events:none;
+  }
+  .device-label {
+    position:absolute;
+    bottom:-24px; left:50%;
+    transform:translateX(-50%);
+    font-family:var(--mono);
+    font-size:8px;
+    letter-spacing:0.2em;
+    color:rgba(255,255,255,0.12);
+    white-space:nowrap;
+    text-transform:uppercase;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding:64px 48px;
+    border-top:1px solid var(--gray-2);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:24px;
+  }
+  .footer-logo {
+    font-family:var(--mono);
+    font-size:13px;
+    font-weight:500;
+    letter-spacing:0.05em;
+    color:var(--ink-3);
+  }
+  .footer-text {
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--gray);
+    letter-spacing:0.05em;
+  }
+  .footer-links {
+    display:flex;
+    gap:24px;
+    list-style:none;
+  }
+  .footer-links a {
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--gray);
+    text-decoration:none;
+    letter-spacing:0.05em;
+    transition:color 0.2s;
+  }
+  .footer-links a:hover { color:var(--ink); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(20px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity:0; }
+    to   { opacity:1; }
+  }
+  @keyframes einkFlash {
+    0%   { filter:brightness(1); }
+    15%  { filter:brightness(3); }
+    30%  { filter:brightness(0.7); }
+    50%  { filter:brightness(1.5); }
+    100% { filter:brightness(1); }
+  }
+  .eink-flash { animation: einkFlash 0.35s ease; }
+
+  /* Grid-cell animation */
+  @keyframes cellFill {
+    from { opacity:0; transform:scale(0); }
+    to   { opacity:1; transform:scale(1); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:900px) {
+    #about { grid-template-columns:1fr; }
+    .about-visual { order:-1; max-width:300px; margin:0 auto; }
+    .converter-layout { grid-template-columns:1fr; }
+    .emulator-layout { grid-template-columns:1fr; }
+    .device-wrapper { margin:0 auto; }
+    nav { padding:0 24px; }
+    section { padding:72px 24px; }
+    .hero-grid { display:none; }
+    .hero-title { font-size:60px; }
+    .divider { margin:0 24px; }
+    #docs { padding:60px 24px; }
+    footer { padding:48px 24px; }
+  }
+  @media(max-width:600px) {
+    .hero-stats { flex-wrap:wrap; gap:28px; }
+    .docs-inner { flex-direction:column; }
+    .nav-links { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAVIGATION ── -->
+<nav id="mainNav">
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-mark">N</div>
+    NFX OS
+  </a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#docs">API Docs</a></li>
+    <li><a href="#tools">Tools</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ── -->
+<section id="hero">
+  <div class="hero-eyebrow">v1.1 Now Available</div>
+  <h1 class="hero-title">
+    NFX OS
+    <span>Build apps for e‑ink, the right way.</span>
+  </h1>
+  <p class="hero-desc">
+    A minimal app runtime for the ESP32-C3 with a 200×200 e-ink display. Write a single <code style="font-family:var(--mono);font-size:14px;background:var(--paper-2);padding:2px 6px;border-radius:3px;">.h</code> file, get a native app. No driver code. No boilerplate.
+  </p>
+  <div class="hero-cta">
+    <a href="#docs" class="btn-primary"><span>Read the Docs</span></a>
+    <a href="#tools" class="btn-secondary">Try the Tools ↓</a>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-value">200²</div>
+      <div class="stat-label">pixel display</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">~10ms</div>
+      <div class="stat-label">loop interval</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">1-bit</div>
+      <div class="stat-label">black &amp; white</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">v1.1</div>
+      <div class="stat-label">partial refresh</div>
+    </div>
+  </div>
+
+  <div class="hero-grid" id="heroGrid">
+    <!-- generated by JS -->
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ── ABOUT ── -->
+<section id="about">
+  <div class="about-visual reveal">
+    <div class="about-device-frame">
+      <div class="about-screen">
+        <div class="about-screen-inner">
+          <div class="screen-title-bar">NFX OS · Launcher</div>
+          <div class="screen-row active"><div class="screen-dot"></div> Quick SMS</div>
+          <div class="screen-row"><div class="screen-dot"></div> Clock</div>
+          <div class="screen-row"><div class="screen-dot"></div> Contacts</div>
+          <div class="screen-row"><div class="screen-dot"></div> Settings</div>
+          <div class="screen-row" style="margin-top:auto;opacity:0.4;font-size:8px;">BLE ● Connected</div>
+        </div>
+      </div>
+      <div class="about-specs">
+        <div class="spec-tag">ESP32-C3</div>
+        <div class="spec-tag">SSD1681</div>
+        <div class="spec-tag">BLE Client</div>
+        <div class="spec-tag">Arduino FW</div>
+      </div>
+      <div class="about-buttons">
+        <div class="hw-btn"></div>
+        <div class="hw-btn"></div>
+        <div class="hw-btn"></div>
+      </div>
+    </div>
+  </div>
+  <div class="about-content">
+    <div class="section-label reveal">Platform</div>
+    <h2 class="section-title reveal reveal-delay-1">One file.<br>One device.<br>Full control.</h2>
+    <p class="section-body reveal reveal-delay-2">
+      NFX OS abstracts the hardware into a clean API surface — <code style="font-family:var(--mono);font-size:13px;">NFXAPI*</code> — so your app never touches GPIO, SPI, or memory directly. Write business logic, not drivers.
+    </p>
+    <ul class="feature-list">
+      <li class="feature-item reveal reveal-delay-2">
+        <span class="feature-num">01</span>
+        <div class="feature-text">
+          <strong>Sandboxed Runtime</strong>
+          Apps operate exclusively through the NFXAPI interface. Direct hardware access is intentionally withheld.
+        </div>
+      </li>
+      <li class="feature-item reveal reveal-delay-3">
+        <span class="feature-num">02</span>
+        <div class="feature-text">
+          <strong>Partial Refresh</strong>
+          v1.1 smart dirty-rect system computes the minimal changed rectangle — only redraws what changed.
+        </div>
+      </li>
+      <li class="feature-item reveal reveal-delay-4">
+        <span class="feature-num">03</span>
+        <div class="feature-text">
+          <strong>RLE Compression</strong>
+          New compact image format reduces PROGMEM usage by 50–80% for typical icons.
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ── DOCS LINK ── -->
+<section id="docs">
+  <div class="docs-inner">
+    <div>
+      <div class="section-label reveal">Reference</div>
+      <h2 class="section-title reveal reveal-delay-1">Complete<br>API Reference</h2>
+      <p class="docs-desc reveal reveal-delay-2">Everything an app sees and can do — display control, drawing primitives, text, images, input, BLE, time, and debug.</p>
+      <div class="docs-meta reveal reveal-delay-3">
+        <div class="docs-meta-item">30+ API functions across 8 categories</div>
+        <div class="docs-meta-item">Full lifecycle documentation with examples</div>
+        <div class="docs-meta-item">RLE &amp; Standard image format specs</div>
+        <div class="docs-meta-item">Step-by-step app guides included</div>
+      </div>
+    </div>
+    <div class="reveal reveal-delay-2">
+      <a href="https://nfx-website.netlify.app/api" target="_blank" class="btn-docs">
+        Open API Reference <span class="arrow"></span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── TOOLS ── -->
+<section id="tools">
+  <div class="tools-header">
+    <div class="section-label reveal">Developer Tools</div>
+    <h2 class="section-title reveal reveal-delay-1">Built-in tooling<br>for NFX apps.</h2>
+  </div>
+
+  <!-- IMAGE CONVERTER -->
+  <div class="tool-card reveal">
+    <div class="tool-card-header">
+      <div>
+        <div class="tool-card-title">Image Converter</div>
+        <div class="tool-card-subtitle">PNG / JPG → NFX byte array · Auto-selects smallest encoding</div>
+      </div>
+      <span class="tool-badge">Client-side</span>
+    </div>
+    <div class="tool-card-body">
+      <div class="converter-layout">
+        <!-- Upload -->
+        <div class="conv-panel">
+          <div class="conv-panel-title">Input Image</div>
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="imgInput" accept="image/*">
+            <div class="upload-icon">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            </div>
+            <div class="upload-text">Drop image or click</div>
+            <div class="upload-sub">PNG · JPG · GIF · BMP · WEBP</div>
+          </div>
+          <div class="conv-controls">
+            <div class="ctrl-row">
+              <span class="ctrl-label">Width (px)</span>
+              <input type="number" class="ctrl-input" id="outW" value="32" min="1" max="200">
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">Height (px)</span>
+              <input type="number" class="ctrl-input" id="outH" value="32" min="1" max="200">
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">Threshold</span>
+              <input type="number" class="ctrl-input" id="threshold" value="128" min="1" max="254">
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">Dithering</span>
+              <select class="ctrl-select" id="ditherMode">
+                <option value="thresh">Threshold</option>
+                <option value="floyd" selected>Floyd-Steinberg</option>
+              </select>
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">Var name</span>
+              <input type="text" class="ctrl-input" id="varName" value="myImage" style="width:110px;text-align:left;">
+            </div>
+            <button class="convert-btn" id="convertBtn" disabled>Convert Image</button>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="conv-panel">
+          <div class="conv-panel-title">Preview</div>
+          <div class="preview-canvas-wrap">
+            <div class="preview-placeholder" id="previewPlaceholder">No image</div>
+            <canvas id="previewCanvas" style="display:none;"></canvas>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="conv-panel-title" style="margin-bottom:8px;">Output preview</div>
+            <div class="preview-canvas-wrap">
+              <div class="preview-placeholder" id="outputPlaceholder">Convert to see result</div>
+              <canvas id="outputCanvas" style="display:none;"></canvas>
+            </div>
+          </div>
+          <div id="sizeCompare" style="margin-top:10px;display:none;">
+            <div class="conv-panel-title" style="margin-bottom:6px;">Encoding size</div>
+            <div class="size-compare" id="sizePills"></div>
+          </div>
+        </div>
+
+        <!-- Output -->
+        <div class="conv-panel">
+          <div class="conv-panel-title">C Array Output</div>
+          <div class="output-area">
+            <pre class="output-pre" id="cOutput"><span class="comment">// Convert an image to generate output</span></pre>
+            <button class="copy-btn" id="copyBtn" onclick="copyOutput()">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP EMULATOR -->
+  <div class="tool-card reveal reveal-delay-1">
+    <div class="tool-card-header">
+      <div>
+        <div class="tool-card-title">App Emulator</div>
+        <div class="tool-card-subtitle">Load a .h app file and run it live in the browser</div>
+      </div>
+      <span class="tool-badge">JS Runtime</span>
+    </div>
+    <div class="tool-card-body">
+      <div class="emulator-layout">
+        <div class="emulator-info">
+          <p>Upload any NFX OS <code style="font-family:var(--mono);font-size:13px;background:var(--paper-2);padding:1px 5px;border-radius:3px;">.h</code> app file. The emulator parses the C++ class, transpiles it to JavaScript, and runs it against a full browser implementation of the NFX API — including all drawing primitives, input handling, and the refresh cycle.</p>
+          <p>Use the three buttons to interact with your app just like the real device. UP+SEL+DOWN is not intercepted — use the Stop button instead.</p>
+          <div class="api-tags">
+            <span class="api-tag">clear()</span>
+            <span class="api-tag">text()</span>
+            <span class="api-tag">rect()</span>
+            <span class="api-tag">line()</span>
+            <span class="api-tag">circle()</span>
+            <span class="api-tag">image()</span>
+            <span class="api-tag">btnUp()</span>
+            <span class="api-tag">btnSel()</span>
+            <span class="api-tag">btnDown()</span>
+            <span class="api-tag">refresh()</span>
+            <span class="api-tag">now()</span>
+            <span class="api-tag">elapsed()</span>
+          </div>
+          <label class="upload-h-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Upload .h App File
+            <input type="file" accept=".h,.cpp" id="appFileInput" class="upload-h-input">
+          </label>
+          <div class="emulator-status" id="emuStatus">
+            <span class="status-dot"></span>
+            <span id="emuStatusText">No app loaded — upload a .h file to begin</span>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button class="convert-btn" id="stopBtn" style="background:transparent;color:var(--ink-3);border:1px solid var(--gray-2);margin-top:0;" onclick="stopEmulator()">■ Stop</button>
+            <button class="convert-btn" id="restartBtn" style="margin-top:0;" onclick="restartEmulator()">↺ Restart</button>
+          </div>
+        </div>
+        <div class="device-wrapper">
+          <div class="device-body" id="deviceBody">
+            <div class="device-screws"></div>
+            <div class="device-buttons">
+              <div class="dev-btn-group">
+                <button class="dev-btn" id="btnUp" title="UP">▲</button>
+                <div class="dev-btn-label">UP</div>
+              </div>
+              <div class="dev-btn-group">
+                <button class="dev-btn" id="btnSel" title="SEL">●</button>
+                <div class="dev-btn-label">SEL</div>
+              </div>
+              <div class="dev-btn-group">
+                <button class="dev-btn" id="btnDown" title="DOWN">▼</button>
+                <div class="dev-btn-label">DN</div>
+              </div>
+            </div>
+            <div class="screen-container">
+              <div class="screen-bezel" id="screenBezel">
+                <canvas id="emuCanvas" width="400" height="400"></canvas>
+                <div class="screen-glare"></div>
+              </div>
+              <div class="device-label">NFX OS · SSD1681 200×200</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">NFX OS</div>
+  <div class="footer-text">ESP32-C3 · SSD1681 · Arduino Framework · v1.1</div>
+  <ul class="footer-links">
+    <li><a href="#hero">Top</a></li>
+    <li><a href="https://nfx-website.netlify.app/api" target="_blank">API Docs</a></li>
+    <li><a href="#tools">Tools</a></li>
+  </ul>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  HERO GRID ANIMATION
+// ═══════════════════════════════════════════════════════
+(function(){
+  const grid = document.getElementById('heroGrid');
+  if(!grid) return;
+  const cells = 64;
+  const filled = [0,2,5,9,11,13,18,20,24,26,29,33,36,37,40,42,45,49,51,53,56,58,61,63];
+  for(let i=0;i<cells;i++){
+    const c = document.createElement('div');
+    c.className = 'hero-grid-cell' + (filled.includes(i) ? ' filled' : '');
+    if(filled.includes(i)) c.style.animationDelay = (Math.random()*0.8+0.5)+'s';
+    grid.appendChild(c);
+  }
+  // Randomly toggle cells
+  setInterval(()=>{
+    const cells = grid.querySelectorAll('.hero-grid-cell');
+    const idx = Math.floor(Math.random()*64);
+    cells[idx].classList.toggle('filled');
+  }, 600);
+})();
+
+// ═══════════════════════════════════════════════════════
+//  NAV SCROLL
+// ═══════════════════════════════════════════════════════
+const nav = document.getElementById('mainNav');
+window.addEventListener('scroll', ()=>{
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+}, {passive:true});
+
+// ═══════════════════════════════════════════════════════
+//  INTERSECTION OBSERVER (SCROLL REVEAL)
+// ═══════════════════════════════════════════════════════
+const observer = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting) { e.target.classList.add('visible'); }
+  });
+}, {threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+// ═══════════════════════════════════════════════════════
+//  3D SCREEN TILT
+// ═══════════════════════════════════════════════════════
+const bezel = document.getElementById('screenBezel');
+const canvas = document.getElementById('emuCanvas');
+bezel.addEventListener('mousemove', e=>{
+  const r = bezel.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  const rx = -(e.clientY - cy) / r.height * 14;
+  const ry =  (e.clientX - cx) / r.width  * 14;
+  canvas.style.transform = `perspective(600px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+});
+bezel.addEventListener('mouseleave', ()=>{
+  canvas.style.transform = 'perspective(600px) rotateX(0deg) rotateY(0deg)';
+});
+
+// ═══════════════════════════════════════════════════════
+//  ADAFRUIT 5×7 FONT DATA
+// ═══════════════════════════════════════════════════════
+const FONT5X7 = [
+  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x5F,0x00,0x00,0x00,0x07,0x00,0x07,0x00,
+  0x14,0x7F,0x14,0x7F,0x14,0x24,0x2A,0x7F,0x2A,0x12,0x23,0x13,0x08,0x64,0x62,
+  0x36,0x49,0x55,0x22,0x50,0x00,0x05,0x03,0x00,0x00,0x00,0x1C,0x22,0x41,0x00,
+  0x00,0x41,0x22,0x1C,0x00,0x14,0x08,0x3E,0x08,0x14,0x08,0x08,0x3E,0x08,0x08,
+  0x00,0x50,0x30,0x00,0x00,0x08,0x08,0x08,0x08,0x08,0x00,0x60,0x60,0x00,0x00,
+  0x20,0x10,0x08,0x04,0x02,0x3E,0x51,0x49,0x45,0x3E,0x00,0x42,0x7F,0x40,0x00,
+  0x42,0x61,0x51,0x49,0x46,0x21,0x41,0x45,0x4B,0x31,0x18,0x14,0x12,0x7F,0x10,
+  0x27,0x45,0x45,0x45,0x39,0x3C,0x4A,0x49,0x49,0x30,0x01,0x71,0x09,0x05,0x03,
+  0x36,0x49,0x49,0x49,0x36,0x06,0x49,0x49,0x29,0x1E,0x00,0x36,0x36,0x00,0x00,
+  0x00,0x56,0x36,0x00,0x00,0x08,0x14,0x22,0x41,0x00,0x14,0x14,0x14,0x14,0x14,
+  0x00,0x41,0x22,0x14,0x08,0x02,0x01,0x51,0x09,0x06,0x32,0x49,0x79,0x41,0x3E,
+  0x7E,0x11,0x11,0x11,0x7E,0x7F,0x49,0x49,0x49,0x36,0x3E,0x41,0x41,0x41,0x22,
+  0x7F,0x41,0x41,0x22,0x1C,0x7F,0x49,0x49,0x49,0x41,0x7F,0x09,0x09,0x09,0x01,
+  0x3E,0x41,0x49,0x49,0x7A,0x7F,0x08,0x08,0x08,0x7F,0x00,0x41,0x7F,0x41,0x00,
+  0x20,0x40,0x41,0x3F,0x01,0x7F,0x08,0x14,0x22,0x41,0x7F,0x40,0x40,0x40,0x40,
+  0x7F,0x02,0x0C,0x02,0x7F,0x7F,0x04,0x08,0x10,0x7F,0x3E,0x41,0x41,0x41,0x3E,
+  0x7F,0x09,0x09,0x09,0x06,0x3E,0x41,0x51,0x21,0x5E,0x7F,0x09,0x19,0x29,0x46,
+  0x46,0x49,0x49,0x49,0x31,0x01,0x01,0x7F,0x01,0x01,0x3F,0x40,0x40,0x40,0x3F,
+  0x1F,0x20,0x40,0x20,0x1F,0x3F,0x40,0x38,0x40,0x3F,0x63,0x14,0x08,0x14,0x63,
+  0x07,0x08,0x70,0x08,0x07,0x61,0x51,0x49,0x45,0x43,0x00,0x7F,0x41,0x41,0x00,
+  0x02,0x04,0x08,0x10,0x20,0x00,0x41,0x41,0x7F,0x00,0x04,0x02,0x01,0x02,0x04,
+  0x40,0x40,0x40,0x40,0x40,0x00,0x01,0x02,0x04,0x00,0x20,0x54,0x54,0x54,0x78,
+  0x7F,0x48,0x44,0x44,0x38,0x38,0x44,0x44,0x44,0x20,0x38,0x44,0x44,0x48,0x7F,
+  0x38,0x54,0x54,0x54,0x18,0x08,0x7E,0x09,0x01,0x02,0x0C,0x52,0x52,0x52,0x3E,
+  0x7F,0x08,0x04,0x04,0x78,0x00,0x44,0x7D,0x40,0x00,0x20,0x40,0x44,0x3D,0x00,
+  0x7F,0x10,0x28,0x44,0x00,0x00,0x41,0x7F,0x40,0x00,0x7C,0x04,0x18,0x04,0x78,
+  0x7C,0x08,0x04,0x04,0x78,0x38,0x44,0x44,0x44,0x38,0x7C,0x14,0x14,0x14,0x08,
+  0x08,0x14,0x14,0x18,0x7C,0x7C,0x08,0x04,0x04,0x08,0x48,0x54,0x54,0x54,0x20,
+  0x04,0x3F,0x44,0x40,0x20,0x3C,0x40,0x40,0x20,0x7C,0x1C,0x20,0x40,0x20,0x1C,
+  0x3C,0x40,0x30,0x40,0x3C,0x44,0x28,0x10,0x28,0x44,0x0C,0x50,0x50,0x50,0x3C,
+  0x44,0x64,0x54,0x4C,0x44,0x00,0x08,0x36,0x41,0x00,0x00,0x00,0x7F,0x00,0x00,
+  0x00,0x41,0x36,0x08,0x00,0x10,0x08,0x08,0x10,0x08,0x00,0x00,0x00,0x00,0x00
+];
+
+// ═══════════════════════════════════════════════════════
+//  NFX CANVAS API
+// ═══════════════════════════════════════════════════════
+class NFXCanvas {
+  constructor(canvas){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.W = 200; this.H = 200;
+    this.buf = new Uint8Array(200*200);  // 0=white,1=black
+    this.prev = new Uint8Array(200*200);
+    this.startTime = Date.now();
+    this._clearAndFlash();
+  }
+
+  _clearAndFlash(){
+    this.buf.fill(0);
+    this._render(false);
+  }
+
+  // ── Color ──
+  _color(c){ return c ? '#1A180F' : '#E8E3D5'; }
+
+  // ── Drawing primitives ──
+  clear(c=0){ this.buf.fill(c&1); }
+
+  pixel(x,y,c=1){
+    if(x<0||x>=this.W||y<0||y>=this.H) return;
+    this.buf[y*this.W+x]=c&1;
+  }
+
+  getPixel(x,y){
+    if(x<0||x>=this.W||y<0||y>=this.H) return 0;
+    return this.buf[y*this.W+x];
+  }
+
+  line(x0,y0,x1,y1,c=1){
+    x0=Math.round(x0); y0=Math.round(y0);
+    x1=Math.round(x1); y1=Math.round(y1);
+    let dx=Math.abs(x1-x0), sx=x0<x1?1:-1;
+    let dy=-Math.abs(y1-y0), sy=y0<y1?1:-1;
+    let err=dx+dy;
+    while(true){
+      this.pixel(x0,y0,c);
+      if(x0===x1&&y0===y1) break;
+      const e2=2*err;
+      if(e2>=dy){err+=dy;x0+=sx;}
+      if(e2<=dx){err+=dx;y0+=sy;}
+    }
+  }
+
+  rect(x0,y0,x1,y1,c=1){
+    if(x0>x1)[x0,x1]=[x1,x0];
+    if(y0>y1)[y0,y1]=[y1,y0];
+    for(let y=y0;y<=y1;y++)
+      for(let x=x0;x<=x1;x++)
+        this.pixel(x,y,c);
+  }
+
+  outline(x0,y0,x1,y1,c=1){
+    if(x0>x1)[x0,x1]=[x1,x0];
+    if(y0>y1)[y0,y1]=[y1,y0];
+    this.line(x0,y0,x1,y0,c);
+    this.line(x0,y1,x1,y1,c);
+    this.line(x0,y0,x0,y1,c);
+    this.line(x1,y0,x1,y1,c);
+  }
+
+  roundRect(x0,y0,x1,y1,r,c=1){
+    if(x0>x1)[x0,x1]=[x1,x0];
+    if(y0>y1)[y0,y1]=[y1,y0];
+    r=Math.min(r,Math.floor((x1-x0)/2),Math.floor((y1-y0)/2));
+    this.line(x0+r,y0,x1-r,y0,c);
+    this.line(x0+r,y1,x1-r,y1,c);
+    this.line(x0,y0+r,x0,y1-r,c);
+    this.line(x1,y0+r,x1,y1-r,c);
+    this._arcCorner(x0+r,y0+r,r,1,c);
+    this._arcCorner(x1-r,y0+r,r,2,c);
+    this._arcCorner(x0+r,y1-r,r,4,c);
+    this._arcCorner(x1-r,y1-r,r,8,c);
+  }
+
+  roundRectFill(x0,y0,x1,y1,r,c=1){
+    if(x0>x1)[x0,x1]=[x1,x0];
+    if(y0>y1)[y0,y1]=[y1,y0];
+    r=Math.min(r,Math.floor((x1-x0)/2),Math.floor((y1-y0)/2));
+    for(let y=y0;y<=y1;y++){
+      let sx,ex;
+      if(y<y0+r){const dy=y0+r-y,dx=Math.floor(Math.sqrt(r*r-dy*dy));sx=x0+r-dx;ex=x1-r+dx;}
+      else if(y>y1-r){const dy=y-(y1-r),dx=Math.floor(Math.sqrt(r*r-dy*dy));sx=x0+r-dx;ex=x1-r+dx;}
+      else{sx=x0;ex=x1;}
+      for(let x=sx;x<=ex;x++) this.pixel(x,y,c);
+    }
+  }
+
+  _arcCorner(cx,cy,r,quad,c){
+    let x=r,y=0,err=0;
+    while(x>=y){
+      if(quad&1){this.pixel(cx-x,cy-y,c);this.pixel(cx-y,cy-x,c);}
+      if(quad&2){this.pixel(cx+x,cy-y,c);this.pixel(cx+y,cy-x,c);}
+      if(quad&4){this.pixel(cx-x,cy+y,c);this.pixel(cx-y,cy+x,c);}
+      if(quad&8){this.pixel(cx+x,cy+y,c);this.pixel(cx+y,cy+x,c);}
+      y++;err+=1+2*y;
+      if(2*(err-x)+1>0){x--;err+=1-2*x;}
+    }
+  }
+
+  circle(x0,y0,r,c=1){
+    let x=r,y=0,err=0;
+    while(x>=y){
+      this.pixel(x0+x,y0+y,c);this.pixel(x0+y,y0+x,c);
+      this.pixel(x0-y,y0+x,c);this.pixel(x0-x,y0+y,c);
+      this.pixel(x0-x,y0-y,c);this.pixel(x0-y,y0-x,c);
+      this.pixel(x0+y,y0-x,c);this.pixel(x0+x,y0-y,c);
+      y++;err+=1+2*y;
+      if(2*(err-x)+1>0){x--;err+=1-2*x;}
+    }
+  }
+
+  circleFill(x0,y0,r,c=1){
+    for(let y=-r;y<=r;y++){
+      const xr=Math.floor(Math.sqrt(r*r-y*y));
+      for(let x=-xr;x<=xr;x++) this.pixel(x0+x,y0+y,c);
+    }
+  }
+
+  triangle(x0,y0,x1,y1,x2,y2,c=1){
+    this.line(x0,y0,x1,y1,c);
+    this.line(x1,y1,x2,y2,c);
+    this.line(x2,y2,x0,y0,c);
+  }
+
+  triangleFill(x0,y0,x1,y1,x2,y2,c=1){
+    if(y0>y1){[x0,y0,x1,y1]=[x1,y1,x0,y0];}
+    if(y1>y2){[x1,y1,x2,y2]=[x2,y2,x1,y1];}
+    if(y0>y1){[x0,y0,x1,y1]=[x1,y1,x0,y0];}
+    const total=y2-y0;
+    for(let i=0;i<total;i++){
+      const low=i>y1-y0||y1===y0;
+      const segH=low?y2-y1:y1-y0;
+      if(!segH)continue;
+      const a=x0+(x2-x0)*i/total;
+      const b=low?x1+(x2-x1)*(i-(y1-y0))/segH:x0+(x1-x0)*i/segH;
+      const sx=Math.round(Math.min(a,b)),ex=Math.round(Math.max(a,b));
+      for(let x=sx;x<=ex;x++) this.pixel(x,y0+i,c);
+    }
+  }
+
+  text(x,y,str,sz=1,c=1){
+    if(typeof str!=='string') str=String(str);
+    sz=Math.max(1,Math.min(4,Math.round(sz)));
+    let cx=x;
+    for(let i=0;i<str.length;i++){
+      const code=str.charCodeAt(i);
+      if(code<32||code>126) continue;
+      const idx=(code-32)*5;
+      for(let col=0;col<5;col++){
+        const colData=FONT5X7[idx+col]||0;
+        for(let row=0;row<7;row++){
+          if(colData&(1<<row)){
+            for(let sy=0;sy<sz;sy++)
+              for(let sx=0;sx<sz;sx++)
+                this.pixel(cx+col*sz+sx,y+row*sz+sy,c);
+          }
+        }
+      }
+      cx+=(5+1)*sz;
+      if(cx>=200) break;
+    }
+  }
+
+  // Font stubs — in emulator we just use the built-in
+  setFont(f){}
+  clearFont(){}
+  textBounds(t,x,y,bxRef,byRef,bwRef,bhRef){}
+
+  // ── Image rendering ──
+  image(x,y,data,w,h,inv=false){
+    if(!data||!data.length) return;
+    const fmt=data[0];
+    let pixels=[];
+    if(fmt===0x00){
+      // Standard bit-pack
+      let px=0;
+      for(let i=1;i<data.length;i++){
+        const b=data[i];
+        for(let bit=7;bit>=0;bit--){
+          if(px<w*h) pixels.push((b>>bit)&1);
+          px++;
+        }
+      }
+    } else if(fmt===0x01){
+      // RLE
+      for(let i=1;i<data.length;i++){
+        const b=data[i];
+        const col=(b>>7)&1;
+        const run=(b&0x7F)+1;
+        for(let j=0;j<run;j++) pixels.push(col);
+      }
+    }
+    for(let i=0;i<pixels.length&&i<w*h;i++){
+      const px=i%w, py=Math.floor(i/w);
+      const c=inv?(pixels[i]?0:1):pixels[i];
+      this.pixel(x+px,y+py,c);
+    }
+  }
+
+  // ── Display ──
+  dispOn(){}
+  dispOff(){}
+
+  refresh(partial=false){
+    this._render(partial);
+  }
+
+  invert(){
+    for(let i=0;i<this.buf.length;i++) this.buf[i]=this.buf[i]?0:1;
+  }
+
+  _render(partial){
+    const scale=2;
+    const W=this.W, H=this.H;
+    const canvas=this.canvas;
+    const ctx=this.ctx;
+    if(!partial){
+      // Full flash
+      ctx.fillStyle='#FFFFFF';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      setTimeout(()=>this._drawBuffer(ctx,scale,W,H),80);
+    } else {
+      this._drawBuffer(ctx,scale,W,H);
+    }
+    this.prev.set(this.buf);
+  }
+
+  _drawBuffer(ctx,scale,W,H){
+    const id=ctx.createImageData(W*scale,H*scale);
+    const d=id.data;
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const v=this.buf[y*W+x]?26:232;
+        // slight warmth: subtract a tiny bit of blue
+        const r=v, g=v, b=this.buf[y*W+x]?24:(v-8);
+        for(let sy=0;sy<scale;sy++){
+          for(let sx=0;sx<scale;sx++){
+            const idx=((y*scale+sy)*W*scale+(x*scale+sx))*4;
+            d[idx]=r; d[idx+1]=g; d[idx+2]=b; d[idx+3]=255;
+          }
+        }
+      }
+    }
+    ctx.putImageData(id,0,0);
+  }
+
+  // ── Time ──
+  now(){ return Date.now()-this.startTime; }
+  elapsed(since){ return this.now()-since; }
+
+  // ── BLE stubs ──
+  bleIsConnected(){ return false; }
+  bleOn(){}; bleOff(){};
+  bleConnect(n){}; bleAutoConnect(){}; bleDisconnect(){};
+  sendSMS(p,m){};
+  loadConv(p){}; loadAllConvs(){};
+
+  // ── Log stubs ──
+  log(m){}; logln(m){};
+}
+
+// ═══════════════════════════════════════════════════════
+//  SPRINTF HELPER
+// ═══════════════════════════════════════════════════════
+function _sprintf(fmt, ...args){
+  let i=0;
+  return String(fmt).replace(/%([0-9]*)([dsuflgx])/g,(m,w,t)=>{
+    const v=args[i++];
+    let s='';
+    switch(t){
+      case 'd':case 'u':case 'l': s=Math.trunc(Number(v)||0).toString(); break;
+      case 's': s=String(v||''); break;
+      case 'f': s=(Number(v)||0).toFixed(2); break;
+      case 'g': s=(Number(v)||0).toString(); break;
+      case 'x': s=(Math.trunc(Number(v)||0)).toString(16); break;
+      default: s=String(v||'');
+    }
+    const width=parseInt(w);
+    if(width&&s.length<width) s=s.padStart(width,' ');
+    return s;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  C++ → JS TRANSPILER
+// ═══════════════════════════════════════════════════════
+function transpileBlock(code){
+  if(!code) return '';
+  // Remove block/inline comments
+  code=code.replace(/\/\*[\s\S]*?\*\//g,' ');
+  code=code.replace(/\/\/.*/g,'');
+  // Type keywords → var
+  code=code.replace(/\b(static\s+)?(unsigned\s+)?(const\s+)?(uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t)\b/g,'var');
+  code=code.replace(/\bconst char\s*\*/g,'var');
+  code=code.replace(/\bchar\s+(\w+)\s*\[\s*\d*\s*\]/g,'var $1');
+  code=code.replace(/\bchar\b(?!\s*\[)/g,'var');
+  code=code.replace(/\b(static\s+)?String\b/g,'var');
+  code=code.replace(/\b(static\s+)?bool\b/g,'var');
+  code=code.replace(/\b(static\s+)?float\b/g,'var');
+  code=code.replace(/\b(static\s+)?double\b/g,'var');
+  code=code.replace(/\b(static\s+)?int\b/g,'var');
+  code=code.replace(/\bstatic\s+var\b/g,'var');
+  code=code.replace(/\bstatic\s+/g,'');
+  // Remove PROGMEM, override
+  code=code.replace(/\bPROGMEM\b/g,'');
+  code=code.replace(/\boverride\b/g,'');
+  code=code.replace(/NFXAPI\s*\*/g,'');
+  // nullptr/NULL → null
+  code=code.replace(/\bnullptr\b/g,'null');
+  code=code.replace(/\bNULL\b/g,'null');
+  // true/false already JS
+  // api-> → api.
+  code=code.replace(/api\s*->\s*/g,'api.');
+  // snprintf
+  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*sizeof\s*\([^)]*\)\s*,([^;]+)\)/g,
+    (m,buf,rest)=>`${buf} = _sprintf(${rest.trim()})`);
+  // itoa
+  code=code.replace(/itoa\s*\(\s*([^,]+)\s*,\s*(\w+)\s*,[^)]*\)/g,
+    (m,val,buf)=>`${buf} = String(Math.trunc(${val}))`);
+  // sprintf without buf
+  code=code.replace(/sprintf\s*\(\s*(\w+)\s*,([^;]+)\)/g,
+    (m,buf,rest)=>`${buf} = _sprintf(${rest.trim()})`);
+  // String() constructor
+  code=code.replace(/String\s*\(/g,'String(');
+  // .c_str()
+  code=code.replace(/\.c_str\(\)/g,'');
+  // abs() → Math.abs(), sin/cos/sqrt/floor
+  code=code.replace(/\babs\s*\(/g,'Math.abs(');
+  code=code.replace(/\bsin\s*\(/g,'Math.sin(');
+  code=code.replace(/\bcos\s*\(/g,'Math.cos(');
+  code=code.replace(/\bsqrt\s*\(/g,'Math.sqrt(');
+  code=code.replace(/\bfloor\s*\(/g,'Math.floor(');
+  code=code.replace(/\bceil\s*\(/g,'Math.ceil(');
+  code=code.replace(/\bPI\b/g,'Math.PI');
+  code=code.replace(/\bM_PI\b/g,'Math.PI');
+  // C cast (type) → ignored
+  code=code.replace(/\(\s*(int|float|double|var|uint8_t|uint16_t|uint32_t)\s*\)/g,'');
+  // for(var  
+  code=code.replace(/for\s*\(\s*(var\s+)?(\w+\s+)/g, (m,v,t)=>'for(var ');
+  // delay() → skip
+  code=code.replace(/\bdelay\s*\([^)]*\)\s*;/g,'');
+  // Serial.print → //
+  code=code.replace(/Serial\s*\.\s*\w+\s*\([^)]*\)\s*;/g,'');
+  return code;
+}
+
+function extractBraceBlock(code, startIdx){
+  let depth=1, i=startIdx;
+  while(i<code.length && depth>0){
+    if(code[i]==='{') depth++;
+    else if(code[i]==='}'){depth--;if(depth===0)break;}
+    i++;
+  }
+  return code.slice(startIdx,i);
+}
+
+function extractMethod(code, name){
+  const patterns=[
+    new RegExp(`\\b${name}\\s*\\([^)]*\\)(?:\\s*override)?\\s*\\{`,'s'),
+    new RegExp(`\\b${name}\\s*\\(\\)\\s*\\{`,'s')
+  ];
+  for(const pat of patterns){
+    const m=pat.exec(code);
+    if(m){
+      return extractBraceBlock(code, m.index+m[0].length);
+    }
+  }
+  return '';
+}
+
+function extractClassBody(code){
+  const m=/class\s+\w+\s*(?::\s*(?:public\s+)?\w+)?\s*\{/.exec(code);
+  if(!m) return code;
+  return extractBraceBlock(code, m.index+m[0].length);
+}
+
+function extractMemberVars(classBody){
+  const lines=classBody.split('\n');
+  const vars=[];
+  let inMethod=false, depth=0;
+  for(const line of lines){
+    const t=line.trim();
+    if(!t) continue;
+    if(/^\s*(private|public|protected)\s*:/.test(line)) continue;
+    // Track method depth
+    for(const ch of line){
+      if(ch==='{') depth++;
+      else if(ch==='}') depth--;
+    }
+    if(depth>0){ inMethod=true; continue; }
+    if(depth===0 && inMethod){ inMethod=false; continue; }
+    // Must be a var declaration at top level
+    if(/^(NFXAPI|var|bool|int|uint|float|double|String|char|const|static)\b/.test(t) && !/\(/.test(t) && !/\{/.test(t)){
+      const tv=transpileBlock(t);
+      if(tv.trim()) vars.push(tv.trim());
+    }
+  }
+  return vars.join('\n');
+}
+
+function buildApp(rawCode, nfxApi){
+  try{
+    const body=extractClassBody(rawCode);
+    const members=extractMemberVars(body);
+    const onStart=transpileBlock(extractMethod(body,'onStart'));
+    const onLoop=transpileBlock(extractMethod(body,'onLoop'));
+    const onStop=transpileBlock(extractMethod(body,'onStop'));
+
+    const jsCode=`(function(api,_sprintf){
+      var a=api;
+      ${members}
+      return {
+        onStart:function(){ ${onStart} },
+        onLoop: function(){ ${onLoop} },
+        onStop: function(){ ${onStop} }
+      };
+    })`;
+    const factory=eval(jsCode);
+    return factory(nfxApi,_sprintf);
+  }catch(e){
+    console.error('Transpile error:',e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  APP EMULATOR RUNTIME
+// ═══════════════════════════════════════════════════════
+let emuNFX=null, emuApp=null, emuLoop=null, emuRunning=false;
+const BTN_STATE={ up:false,sel:false,down:false };
+const BTN_EDGE={ up:false,sel:false,down:false };
+const BTN_REL={ up:false,sel:false,down:false };
+const BTN_HELD={ up:false,sel:false,down:false };
+
+// Wire physical buttons
+['Up','Sel','Down'].forEach(name=>{
+  const k=name.toLowerCase();
+  const btn=document.getElementById('btn'+name);
+  btn.addEventListener('mousedown',()=>{
+    if(!BTN_STATE[k]){ BTN_EDGE[k]=true; }
+    BTN_STATE[k]=true; BTN_HELD[k]=true;
+    btn.classList.add('pressed');
+  });
+  const up=()=>{
+    if(BTN_STATE[k]){ BTN_REL[k]=true; }
+    BTN_STATE[k]=false; BTN_HELD[k]=false;
+    btn.classList.remove('pressed');
+  };
+  btn.addEventListener('mouseup',up);
+  btn.addEventListener('mouseleave',up);
+  btn.addEventListener('touchstart',e=>{e.preventDefault();btn.dispatchEvent(new MouseEvent('mousedown'));},{passive:false});
+  btn.addEventListener('touchend',e=>{e.preventDefault();btn.dispatchEvent(new MouseEvent('mouseup'));},{passive:false});
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.repeat) return;
+  if(e.key==='ArrowUp'||e.key==='w'){ if(!BTN_STATE.up)BTN_EDGE.up=true;BTN_STATE.up=true;BTN_HELD.up=true;document.getElementById('btnUp').classList.add('pressed'); }
+  if(e.key==='ArrowDown'||e.key==='s'){ if(!BTN_STATE.down)BTN_EDGE.down=true;BTN_STATE.down=true;BTN_HELD.down=true;document.getElementById('btnDown').classList.add('pressed'); }
+  if(e.key===' '||e.key==='Enter'){ if(!BTN_STATE.sel)BTN_EDGE.sel=true;BTN_STATE.sel=true;BTN_HELD.sel=true;document.getElementById('btnSel').classList.add('pressed'); }
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='ArrowUp'||e.key==='w'){ if(BTN_STATE.up)BTN_REL.up=true;BTN_STATE.up=false;BTN_HELD.up=false;document.getElementById('btnUp').classList.remove('pressed'); }
+  if(e.key==='ArrowDown'||e.key==='s'){ if(BTN_STATE.down)BTN_REL.down=true;BTN_STATE.down=false;BTN_HELD.down=false;document.getElementById('btnDown').classList.remove('pressed'); }
+  if(e.key===' '||e.key==='Enter'){ if(BTN_STATE.sel)BTN_REL.sel=true;BTN_STATE.sel=false;BTN_HELD.sel=false;document.getElementById('btnSel').classList.remove('pressed'); }
+});
+
+function makeApiProxy(nfx){
+  return {
+    clear:(c=0)=>nfx.clear(c),
+    pixel:(x,y,c=1)=>nfx.pixel(x,y,c),
+    getPixel:(x,y)=>nfx.getPixel(x,y),
+    line:(x0,y0,x1,y1,c=1)=>nfx.line(x0,y0,x1,y1,c),
+    rect:(x0,y0,x1,y1,c=1)=>nfx.rect(x0,y0,x1,y1,c),
+    outline:(x0,y0,x1,y1,c=1)=>nfx.outline(x0,y0,x1,y1,c),
+    roundRect:(x0,y0,x1,y1,r,c=1)=>nfx.roundRect(x0,y0,x1,y1,r,c),
+    roundRectFill:(x0,y0,x1,y1,r,c=1)=>nfx.roundRectFill(x0,y0,x1,y1,r,c),
+    circle:(x0,y0,r,c=1)=>nfx.circle(x0,y0,r,c),
+    circleFill:(x0,y0,r,c=1)=>nfx.circleFill(x0,y0,r,c),
+    triangle:(x0,y0,x1,y1,x2,y2,c=1)=>nfx.triangle(x0,y0,x1,y1,x2,y2,c),
+    triangleFill:(x0,y0,x1,y1,x2,y2,c=1)=>nfx.triangleFill(x0,y0,x1,y1,x2,y2,c),
+    text:(x,y,t,sz=1,c=1)=>nfx.text(x,y,t,sz,c),
+    setFont:(f)=>nfx.setFont(f),
+    clearFont:()=>nfx.clearFont(),
+    textBounds:(t,x,y,bx,by,bw,bh)=>nfx.textBounds(t,x,y,bx,by,bw,bh),
+    image:(x,y,d,w,h,inv=false)=>nfx.image(x,y,d,w,h,inv),
+    refresh:(p=false)=>nfx.refresh(p),
+    invert:()=>nfx.invert(),
+    dispOn:()=>nfx.dispOn(),
+    dispOff:()=>nfx.dispOff(),
+    now:()=>nfx.now(),
+    elapsed:(s)=>nfx.elapsed(s),
+    btnUp:()=>{const v=BTN_EDGE.up;BTN_EDGE.up=false;return v;},
+    btnUpHeld:()=>BTN_HELD.up,
+    btnUpRel:()=>{const v=BTN_REL.up;BTN_REL.up=false;return v;},
+    btnSel:()=>{const v=BTN_EDGE.sel;BTN_EDGE.sel=false;return v;},
+    btnSelHeld:()=>BTN_HELD.sel,
+    btnSelRel:()=>{const v=BTN_REL.sel;BTN_REL.sel=false;return v;},
+    btnDown:()=>{const v=BTN_EDGE.down;BTN_EDGE.down=false;return v;},
+    btnDownHeld:()=>BTN_HELD.down,
+    btnDownRel:()=>{const v=BTN_REL.down;BTN_REL.down=false;return v;},
+    bleIsConnected:()=>false,
+    bleOn:()=>{},bleOff:()=>{},
+    bleConnect:(n)=>{},bleAutoConnect:()=>{},bleDisconnect:()=>{},
+    sendSMS:(p,m)=>{},loadConv:(p)=>{},loadAllConvs:()=>{},
+    log:(m)=>{},logln:(m)=>{}
+  };
+}
+
+function setEmuStatus(msg,type=''){
+  const s=document.getElementById('emuStatus');
+  const t=document.getElementById('emuStatusText');
+  s.className='emulator-status '+(type||'');
+  t.textContent=msg;
+}
+
+function drawDefaultScreen(){
+  if(!emuNFX) return;
+  emuNFX.clear(0);
+  emuNFX.roundRectFill(10,10,190,36,4,1);
+  emuNFX.text(14,18,'NFX OS',2,0);
+  emuNFX.text(130,22,'v1.1',1,0);
+  emuNFX.line(10,44,190,44,1);
+  emuNFX.text(14,52,'No app loaded',1,1);
+  emuNFX.text(10,72,'Upload a .h file to',1,1);
+  emuNFX.text(10,84,'run an app here.',1,1);
+  emuNFX.line(10,100,190,100,1);
+  emuNFX.text(10,108,'Controls:',1,1);
+  emuNFX.text(10,122,'[W] / UP    = Button Up',1,1);
+  emuNFX.text(10,134,'[S] / DOWN  = Button Down',1,1);
+  emuNFX.text(10,146,'[Space]     = Button Sel',1,1);
+  emuNFX.circle(180,170,10,1);
+  emuNFX.text(176,167,'?',1,1);
+  emuNFX.refresh(false);
+}
+
+function loadApp(code){
+  stopEmulator();
+  emuNFX=new NFXCanvas(document.getElementById('emuCanvas'));
+  const api=makeApiProxy(emuNFX);
+  const app=buildApp(code,api);
+  if(!app){
+    setEmuStatus('Transpile failed — check console for details','err');
+    drawDefaultScreen();
+    return;
+  }
+  emuApp=app;
+  emuRunning=true;
+  try{
+    emuApp.onStart();
+    setEmuStatus('App running — use buttons or W/S/Space','ok');
+  }catch(e){
+    setEmuStatus('onStart() error: '+e.message,'err');
+    console.error(e);
+    return;
+  }
+  const INTERVAL=10;
+  emuLoop=setInterval(()=>{
+    if(!emuRunning||!emuApp) return;
+    try{ emuApp.onLoop(); }
+    catch(e){ 
+      clearInterval(emuLoop);
+      setEmuStatus('onLoop() error: '+e.message,'err');
+      console.error(e);
+    }
+  },INTERVAL);
+}
+
+function stopEmulator(){
+  if(emuLoop) clearInterval(emuLoop);
+  emuLoop=null; emuRunning=false;
+  if(emuApp){ try{emuApp.onStop();}catch(e){} }
+  emuApp=null;
+  BTN_EDGE.up=BTN_EDGE.sel=BTN_EDGE.down=false;
+  BTN_REL.up=BTN_REL.sel=BTN_REL.down=false;
+  BTN_HELD.up=BTN_HELD.sel=BTN_HELD.down=false;
+}
+
+function restartEmulator(){
+  const inp=document.getElementById('appFileInput');
+  if(inp._lastCode) loadApp(inp._lastCode);
+  else setEmuStatus('No app loaded','');
+}
+
+// Init emulator with default screen
+window.addEventListener('DOMContentLoaded',()=>{
+  emuNFX=new NFXCanvas(document.getElementById('emuCanvas'));
+  drawDefaultScreen();
+});
+
+document.getElementById('appFileInput').addEventListener('change',function(e){
+  const f=e.target.files[0];
+  if(!f) return;
+  setEmuStatus('Loading '+f.name+'…','');
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const code=ev.target.result;
+    this._lastCode=code;
+    loadApp(code);
+  };
+  reader.readAsText(f);
+});
+
+// ═══════════════════════════════════════════════════════
+//  IMAGE CONVERTER
+// ═══════════════════════════════════════════════════════
+let srcImageData=null;
+
+const imgInput=document.getElementById('imgInput');
+const uploadZone=document.getElementById('uploadZone');
+const previewCanvas=document.getElementById('previewCanvas');
+const previewCtx=previewCanvas.getContext('2d');
+const outputCanvas=document.getElementById('outputCanvas');
+const outputCtx=outputCanvas.getContext('2d');
+
+uploadZone.addEventListener('click',()=>imgInput.click());
+uploadZone.addEventListener('dragover',e=>{e.preventDefault();uploadZone.classList.add('drag-over');});
+uploadZone.addEventListener('dragleave',()=>uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop',e=>{
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];
+  if(f) loadImageFile(f);
+});
+imgInput.addEventListener('change',e=>{
+  if(e.target.files[0]) loadImageFile(e.target.files[0]);
+});
+
+function loadImageFile(file){
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=()=>{
+    // Show preview at natural size (capped)
+    const maxW=previewCanvas.parentElement.clientWidth||200;
+    const scale=Math.min(1, maxW/img.naturalWidth, maxW/img.naturalHeight);
+    previewCanvas.width=img.naturalWidth; previewCanvas.height=img.naturalHeight;
+    previewCtx.drawImage(img,0,0);
+    srcImageData=previewCtx.getImageData(0,0,img.naturalWidth,img.naturalHeight);
+    document.getElementById('previewPlaceholder').style.display='none';
+    previewCanvas.style.display='block';
+    document.getElementById('outW').value=Math.min(img.naturalWidth,200);
+    document.getElementById('outH').value=Math.min(img.naturalHeight,200);
+    document.getElementById('convertBtn').disabled=false;
+    URL.revokeObjectURL(url);
+  };
+  img.src=url;
+}
+
+function floydSteinberg(data, w, h, threshold){
+  // Work on grayscale float array
+  const gray=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++){
+    const idx=i*4;
+    gray[i]=(data[idx]*0.299+data[idx+1]*0.587+data[idx+2]*0.114);
+  }
+  const out=new Uint8Array(w*h);
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      const oldPx=gray[i];
+      const newPx=oldPx<threshold?0:255;
+      out[i]=newPx<128?1:0; // 1=black
+      const err=oldPx-newPx;
+      if(x+1<w)  gray[y*w+x+1]+=err*7/16;
+      if(y+1<h){
+        if(x>0)    gray[(y+1)*w+x-1]+=err*3/16;
+        gray[(y+1)*w+x]  +=err*5/16;
+        if(x+1<w)  gray[(y+1)*w+x+1]+=err*1/16;
+      }
+    }
+  }
+  return out;
+}
+
+function thresholdConvert(data, w, h, threshold){
+  const out=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){
+    const idx=i*4;
+    const g=data[idx]*0.299+data[idx+1]*0.587+data[idx+2]*0.114;
+    out[i]=g<threshold?1:0; // 1=black,0=white
+  }
+  return out;
+}
+
+function encodeStandard(pixels, w, h){
+  const bytes=[0x00]; // format flag
+  const total=w*h;
+  let bitBuf=0, bitCount=0;
+  for(let i=0;i<total;i++){
+    bitBuf=(bitBuf<<1)|(pixels[i]?1:0);
+    bitCount++;
+    if(bitCount===8){ bytes.push(bitBuf); bitBuf=0; bitCount=0; }
+    // Row boundary padding
+    if((i+1)%w===0 && bitCount>0){
+      bitBuf<<=8-bitCount; bytes.push(bitBuf); bitBuf=0; bitCount=0;
+    }
+  }
+  return bytes;
+}
+
+// Re-implement without double-padding
+function encodeStandardCorrect(pixels, w, h){
+  const bytes=[0x00];
+  for(let y=0;y<h;y++){
+    let bitBuf=0, bitCount=0;
+    for(let x=0;x<w;x++){
+      bitBuf=(bitBuf<<1)|(pixels[y*w+x]?1:0);
+      bitCount++;
+      if(bitCount===8){ bytes.push(bitBuf&0xFF); bitBuf=0; bitCount=0; }
+    }
+    if(bitCount>0){ bitBuf<<=8-bitCount; bytes.push(bitBuf&0xFF); }
+  }
+  return bytes;
+}
+
+function encodeRLE(pixels, w, h){
+  const bytes=[0x01];
+  const flat=Array.from(pixels);
+  let i=0;
+  while(i<flat.length){
+    const color=flat[i];
+    let run=1;
+    while(i+run<flat.length && flat[i+run]===color && run<128) run++;
+    bytes.push(((color&1)<<7)|((run-1)&0x7F));
+    i+=run;
+  }
+  return bytes;
+}
+
+function bytesToCArray(bytes, varName, w, h, fmt){
+  const fmtStr=fmt==='rle'?'RLE':'Standard bit-pack';
+  let out=`// Auto-generated by NFX Image Converter\n`;
+  out+=`// ${w}×${h} px · ${fmtStr} · ${bytes.length} bytes\n`;
+  out+=`const uint8_t ${varName}[] PROGMEM = {\n`;
+  const perRow=16;
+  for(let i=0;i<bytes.length;i+=perRow){
+    const chunk=bytes.slice(i,i+perRow);
+    out+='    '+chunk.map(b=>'0x'+b.toString(16).padStart(2,'0').toUpperCase()).join(', ');
+    if(i+perRow<bytes.length) out+=',';
+    out+='\n';
+  }
+  out+=`};\n`;
+  out+=`// Usage: api->image(x, y, ${varName}, ${w}, ${h});`;
+  return out;
+}
+
+function syntaxHighlight(code){
+  return code
+    .replace(/\/\/.*/g,m=>`<span class="comment">${m}</span>`)
+    .replace(/\b(const|uint8_t|PROGMEM)\b/g,m=>`<span class="type">${m}</span>`)
+    .replace(/(0x[0-9A-Fa-f]+)/g,m=>`<span class="value">${m}</span>`);
+}
+
+document.getElementById('convertBtn').addEventListener('click',()=>{
+  if(!srcImageData) return;
+  const outW=parseInt(document.getElementById('outW').value)||32;
+  const outH=parseInt(document.getElementById('outH').value)||32;
+  const threshold=parseInt(document.getElementById('threshold').value)||128;
+  const dither=document.getElementById('ditherMode').value;
+  const varName=document.getElementById('varName').value||'myImage';
+
+  // Scale source image to output size
+  const tmpC=document.createElement('canvas');
+  tmpC.width=outW; tmpC.height=outH;
+  const tmpCtx=tmpC.getContext('2d');
+  // Draw source image scaled
+  const srcC=document.createElement('canvas');
+  srcC.width=srcImageData.width; srcC.height=srcImageData.height;
+  srcC.getContext('2d').putImageData(srcImageData,0,0);
+  tmpCtx.drawImage(srcC,0,0,outW,outH);
+  const scaledData=tmpCtx.getImageData(0,0,outW,outH);
+
+  // Convert to 1-bit
+  let pixels;
+  if(dither==='floyd') pixels=floydSteinberg(scaledData.data,outW,outH,threshold);
+  else pixels=thresholdConvert(scaledData.data,outW,outH,threshold);
+
+  // Encode both
+  const stdBytes=encodeStandardCorrect(pixels,outW,outH);
+  const rleBytes=encodeRLE(pixels,outW,outH);
+  const useRLE=rleBytes.length<=stdBytes.length;
+  const chosen=useRLE?rleBytes:stdBytes;
+  const fmt=useRLE?'rle':'std';
+
+  // Show output preview
+  outputCanvas.width=outW; outputCanvas.height=outH;
+  const outId=outputCtx.createImageData(outW,outH);
+  for(let i=0;i<outW*outH;i++){
+    const v=pixels[i]?26:232;
+    outId.data[i*4]=v; outId.data[i*4+1]=v; outId.data[i*4+2]=v; outId.data[i*4+3]=255;
+  }
+  outputCtx.putImageData(outId,0,0);
+  document.getElementById('outputPlaceholder').style.display='none';
+  outputCanvas.style.display='block';
+
+  // Size pills
+  const sizeDiv=document.getElementById('sizeCompare');
+  const pills=document.getElementById('sizePills');
+  sizeDiv.style.display='block';
+  pills.innerHTML=`
+    <span class="size-pill ${useRLE?'winner':'loser'}">RLE: ${rleBytes.length}B${useRLE?' ✓':''}</span>
+    <span class="size-pill ${!useRLE?'winner':'loser'}">Std: ${stdBytes.length}B${!useRLE?' ✓':''}</span>
+  `;
+
+  // C array
+  const cCode=bytesToCArray(chosen,varName,outW,outH,fmt);
+  document.getElementById('cOutput').innerHTML=syntaxHighlight(cCode);
+  document.getElementById('cOutput')._raw=cCode;
+});
+
+function copyOutput(){
+  const pre=document.getElementById('cOutput');
+  const text=pre._raw||pre.textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.getElementById('copyBtn');
+    btn.textContent='Copied!';
+    btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied');},2000);
+  });
+}
+</script>
+</body>
+</html>
