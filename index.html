@@ -668,15 +668,20 @@
     border-radius:8px;
     overflow:hidden;
     background:#E8E3D5;
-    aspect-ratio:1;
+    width:100%;
+    aspect-ratio:1/1;
     display:flex;
     align-items:center;
     justify-content:center;
+    position:relative;
   }
   .preview-canvas-wrap canvas {
+    display:block;
     max-width:100%;
     max-height:100%;
     image-rendering:pixelated;
+    image-rendering:crisp-edges;
+    /* No stretching — canvas fills the space via JS */
   }
   .preview-placeholder {
     font-family:var(--mono);
@@ -811,11 +816,15 @@
   .emulator-layout {
     display:grid;
     grid-template-columns:1fr auto;
-    gap:48px;
+    gap:40px;
     align-items:start;
   }
   .emulator-info {
-    max-width:440px;
+    min-width:0;
+  }
+  @media(max-width:900px){
+    .emulator-layout{ grid-template-columns:1fr; }
+    .device-wrapper{ margin:0 auto; }
   }
   .emulator-info p {
     font-size:15px;
@@ -973,7 +982,7 @@
   .screen-bezel {
     background:#121008;
     border-radius:10px;
-    padding:6px;
+    padding:8px;
     box-shadow:0 0 0 1px rgba(255,255,255,0.05) inset;
   }
   #emuCanvas {
@@ -981,9 +990,10 @@
     border-radius:4px;
     cursor:crosshair;
     image-rendering:pixelated;
+    image-rendering:crisp-edges;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    width:200px;
-    height:200px;
+    width: clamp(200px, 38vw, 380px);
+    height: clamp(200px, 38vw, 380px);
   }
   .screen-bezel:hover #emuCanvas {
     box-shadow:0 20px 40px rgba(0,0,0,0.5);
@@ -1743,22 +1753,273 @@ function _sprintf(fmt, ...args){
 //  C++ → JS TRANSPILER
 // ═══════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════
-//  C++ → JS TRANSPILER  (fixed)
+//  C++ → JS TRANSPILER  (v3 — handles struct arrays, all patterns)
 // ═══════════════════════════════════════════════════════
+
+function stripComments(code){
+  return code.replace(/\/\*[\s\S]*?\*\//g,' ').replace(/\/\/.*/g,'');
+}
+
+// ── Extract struct definitions from code (entire file)
+// Returns { TypeName: ['field1','field2',...] }
+function extractStructDefs(code){
+  const structs={};
+  // Match struct Foo { ... }; — allow newlines in body
+  const re=/\bstruct\s+(\w+)\s*\{([\s\S]*?)\}/g;
+  let m;
+  while((m=re.exec(code))!==null){
+    const name=m[1];
+    if(['Contact','SMS','Conv','Message','Item','Entry','Option'].includes(name)||/^[A-Z]/.test(name)){
+      const fields=m[2].split(';').map(seg=>{
+        const t=seg.trim()
+          .replace(/\/\/[^\n]*/g,'')  // strip inline comments
+          .replace(/=.*$/,'')         // strip defaults
+          .replace(/\[.*?\]/g,'')     // strip array dims
+          .replace(/\bPROGMEM\b/g,'')
+          .trim();
+        if(!t) return null;
+        const tokens=t.split(/\s+/).filter(Boolean);
+        const last=tokens[tokens.length-1]||'';
+        // Skip if name looks like a type keyword
+        if(/^(?:const|unsigned|signed|void|int|uint|bool|float|double|char|String|uint8_t|uint16_t|uint32_t)$/.test(last)) return null;
+        // Must be a valid identifier
+        if(!/^[a-zA-Z_]\w*$/.test(last)) return null;
+        return last;
+      }).filter(Boolean);
+      structs[name]=fields;
+    }
+  }
+  return structs;
+}
+
+// ── Blank out method bodies (signature + body) in-place
+// Heuristic: a `{` that is preceded (ignoring whitespace + 'override'/'const' keywords) by `)` is a method body
+function blankMethods(code){
+  const chars=code.split('');
+  for(let i=0;i<chars.length;i++){
+    if(chars[i]!=='{') continue;
+    let j=i-1;
+    // skip whitespace
+    while(j>=0 && /\s/.test(chars[j])) j--;
+    // skip 'override' or 'const' keyword
+    if(j>=0 && /\w/.test(chars[j])){
+      let kw='';
+      const save=j;
+      while(j>=0 && /\w/.test(chars[j])) kw=chars[j--]+kw;
+      if(kw==='override'||kw==='const'){
+        while(j>=0 && /\s/.test(chars[j])) j--;
+      } else {
+        j=save; // restore: not a qualifier keyword
+      }
+    }
+    if(j<0 || chars[j]!==')') continue; // not a method body
+    // It IS a method body. Find sig start by scanning back to previous ; or } (at depth 0)
+    let sigStart=i;
+    let bd=0;
+    for(let k=i-1;k>=0;k--){
+      if(chars[k]==='}') bd++;
+      else if(chars[k]==='{') bd--;
+      else if(bd===0 && (chars[k]===';'||chars[k]==='{')){sigStart=k+1;break;}
+      else if(k===0) sigStart=0;
+    }
+    // Blank from sigStart to end of method body (including closing })
+    let depth=1, end=i+1;
+    while(end<chars.length && depth>0){
+      if(chars[end]==='{') depth++;
+      else if(chars[end]==='}') depth--;
+      end++;
+    }
+    for(let k=sigStart;k<end;k++) chars[k]=' ';
+    i=end-1;
+  }
+  return chars.join('');
+}
+
+// ── Split a brace-initializer string `{ a, {b,c}, d }` into top-level items
+function splitCommaDepth(str){
+  const items=[];
+  let depth=0, cur='';
+  for(const ch of str){
+    if(ch==='{'||ch==='[') { depth++; cur+=ch; }
+    else if(ch==='}'||ch===']') { depth--; cur+=ch; }
+    else if(ch===','&&depth===0){ items.push(cur.trim()); cur=''; }
+    else cur+=ch;
+  }
+  if(cur.trim()) items.push(cur.trim());
+  return items;
+}
+
+// ── Convert a C brace initializer to JS
+// structFields = ['name','phone'] or [] for plain arrays
+function convertBraceInit(init, structFields){
+  init=init.trim();
+  if(!init.startsWith('{')) return init;
+  const inner=init.slice(1,init.length-1).trim();
+  const items=splitCommaDepth(inner);
+  // Are any items themselves brace-inits? → array of structs/objects
+  const hasNested=items.some(it=>it.startsWith('{'));
+  if(hasNested){
+    const jsItems=items.map(it=>{
+      it=it.trim();
+      if(it.startsWith('{')){
+        const sub=it.slice(1,it.length-1).trim();
+        const subItems=splitCommaDepth(sub);
+        if(structFields && structFields.length>0){
+          const props=subItems.map((v,idx)=>
+            `${structFields[idx]||('_'+idx)}: ${v.trim()}`
+          ).join(', ');
+          return `{${props}}`;
+        }
+        return `[${subItems.join(', ')}]`;
+      }
+      return it;
+    });
+    return `[${jsItems.join(', ')}]`;
+  }
+  // Plain array (uint8 bytes, strings, numbers, etc.)
+  return `[${items.join(', ')}]`;
+}
+
+// ── Extract member variable declarations (skipping method bodies)
+function extractMemberVars(classBody, structs){
+  // Remove struct definitions (they're not variables)
+  let code=classBody.replace(/\bstruct\s+\w+\s*\{[^}]*\}\s*;?/g,'');
+  // Blank all method bodies + signatures
+  code=blankMethods(code);
+  // Collect statements at depth 0 (braces from initializers are tracked for depth)
+  const stmts=[];
+  let depth=0, cur='';
+  for(const ch of code){
+    if(ch==='{') { depth++; cur+=ch; }
+    else if(ch==='}') { depth--; if(depth<0)depth=0; cur+=ch; }
+    else if(ch===';'&&depth===0){ const s=cur.trim(); if(s) stmts.push(s); cur=''; }
+    else cur+=ch;
+  }
+  const knownStructs=new Set(Object.keys(structs||{}));
+  const decls=[];
+  for(let stmt of stmts){
+    stmt=stmt.trim();
+    if(!stmt) continue;
+    // Strip access specifiers that might be inline
+    stmt=stmt.replace(/^\s*(private|public|protected)\s*:\s*/,'').trim();
+    if(!stmt) continue;
+    if(/^[#@]|^using\b|^class\b|^namespace\b|^typedef\b/.test(stmt)) continue;
+    // Skip NFXAPI pointers, virtual declarations, pure virtuals
+    if(/\bNFXAPI\s*\*|\bvirtual\b|=\s*0\s*$/.test(stmt)) continue;
+    // Skip method signatures: anything that has ( before any = or {
+    const beforeEq=stmt.split(/[={]/)[0];
+    if(/\(/.test(beforeEq)) continue;
+    // Skip GFXfont pointers
+    if(/\bGFXfont\b/.test(stmt)) continue;
+
+    // ── Struct instance / array?
+    const structType=[...knownStructs].find(t=>new RegExp(`(?:^|\\s)${t}(?:\\s|\\[|$)`).test(stmt));
+    if(structType){
+      const fields=structs[structType]||[];
+      const nameM=stmt.match(new RegExp(`\\b${structType}\\b\\s+(\\w+)\\s*(?:\\[\\d*\\])?`));
+      if(!nameM) continue;
+      const varName=nameM[1];
+      const eqIdx=stmt.indexOf('=');
+      if(eqIdx>=0){
+        const initStr=stmt.slice(eqIdx+1).trim();
+        decls.push(`var ${varName} = ${convertBraceInit(initStr,fields)};`);
+      } else {
+        decls.push(`var ${varName} = [];`);
+      }
+      continue;
+    }
+
+    // ── uint8_t / PROGMEM byte array?
+    if(/\buint8_t\b/.test(stmt) && /\[/.test(stmt)){
+      const nm=stmt.match(/\b(\w+)\s*\[\s*\d*\s*\]/);
+      if(nm){
+        const varName=nm[1];
+        if(varName==='PROGMEM'||/^uint|^int|^bool|^char|^float/.test(varName)) continue;
+        const eqIdx=stmt.indexOf('=');
+        if(eqIdx>=0){
+          const initStr=stmt.slice(eqIdx+1).trim();
+          const inner=initStr.replace(/^\{/,'').replace(/\}$/,'').trim();
+          decls.push(`var ${varName} = new Uint8Array([${inner}]);`);
+        } else {
+          decls.push(`var ${varName} = new Uint8Array(0);`);
+        }
+        continue;
+      }
+    }
+
+    // ── const char* or char array (string list)?
+    if(/\bchar\b/.test(stmt) && /\[/.test(stmt) && stmt.includes('=')){
+      const nm=stmt.match(/\b(\w+)\s*\[\s*\d*\s*\]/);
+      if(nm){
+        const varName=nm[1];
+        const eqIdx=stmt.indexOf('=');
+        const initStr=stmt.slice(eqIdx+1).trim();
+        const inner=initStr.replace(/^\{/,'').replace(/\}$/,'').trim();
+        decls.push(`var ${varName} = [${inner}];`);
+        continue;
+      }
+    }
+
+    // ── Generic C array with brace initializer?
+    if(/\[/.test(stmt) && stmt.includes('=') && stmt.includes('{')){
+      const nm=stmt.match(/\b(\w+)\s*\[\s*\d*\s*\]/);
+      if(nm){
+        const varName=nm[1];
+        if(/^uint|^int|^bool|^char|^float/.test(varName)) continue;
+        const eqIdx=stmt.indexOf('=');
+        const initStr=stmt.slice(eqIdx+1).trim();
+        const inner=initStr.replace(/^\{/,'').replace(/\}$/,'').trim();
+        decls.push(`var ${varName} = [${inner}];`);
+        continue;
+      }
+    }
+
+    // ── Unknown type (PascalCase = user-defined struct not in known list)
+    // e.g. `Contact contacts[] = { ... }` where Contact wasn't in class scope
+    {
+      const firstToken=stmt.replace(/^(?:static|const)\s+/g,'').split(/[\s\[<({]/)[0];
+      const isPascalCase=/^[A-Z][A-Za-z0-9_]+$/.test(firstToken);
+      if(isPascalCase){
+        // treat as struct type — find var name
+        const nameM=stmt.match(new RegExp(`\\b${firstToken}\\b\\s+(\\w+)\\s*(?:\\[\\s*\\d*\\s*\\])?`));
+        if(nameM){
+          const varName=nameM[1];
+          const eqIdx=stmt.indexOf('=');
+          if(eqIdx>=0){
+            const initStr=stmt.slice(eqIdx+1).trim();
+            decls.push(`var ${varName} = ${convertBraceInit(initStr,[])};`);
+          } else {
+            decls.push(`var ${varName} = null;`);
+          }
+          continue;
+        }
+      }
+    }
+
+    // ── Simple declaration (built-in types)
+    const js=transpileBlock(stmt);
+    const clean=js.trim().replace(/;$/,'').replace(/\bvar\s+var\b/g,'var');
+    if(clean&&!/^var\s*$/.test(clean)&&clean!=='var'){
+      decls.push(clean+';');
+    }
+  }
+  return decls.join('\n');
+}
+
+// ── Core code transpiler (method bodies)
 function transpileBlock(code){
   if(!code) return '';
-  // Strip comments
-  code=code.replace(/\/\*[\s\S]*?\*\//g,' ');
-  code=code.replace(/\/\/.*/g,'');
+  code=stripComments(code);
 
-  // Fix for-loops BEFORE general type replacement so we can match C types
+  // for-loops FIRST (before generic type replacement clobbers the type)
   code=code.replace(
-    /\bfor\s*\(\s*(?:static\s+)?(?:unsigned\s+|signed\s+)?(?:uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|int|char|float|double|bool)\s+(\w+)/g,
+    /\bfor\s*\(\s*(?:static\s+)?(?:unsigned\s+)?(?:const\s+)?(?:uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|int|char|float|double|bool)\s+(\w+)/g,
     'for(var $1'
   );
 
-  // Type keywords → var
-  code=code.replace(/\b(?:static\s+)?(?:unsigned\s+)?(?:const\s+)?(?:uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t)\b/g,'var');
+  // Types → var
+  const typeRe=/\b(?:static\s+)?(?:unsigned\s+)?(?:const\s+)?(?:uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t)\b/g;
+  code=code.replace(typeRe,'var');
   code=code.replace(/\bconst\s+char\s*\*/g,'var');
   code=code.replace(/\bchar\s+(\w+)\s*\[\s*\d*\s*\]/g,'var $1');
   code=code.replace(/\bchar\b(?!\s*\[)/g,'var');
@@ -1766,48 +2027,85 @@ function transpileBlock(code){
   code=code.replace(/\b(?:static\s+)?bool\b/g,'var');
   code=code.replace(/\b(?:static\s+)?float\b/g,'var');
   code=code.replace(/\b(?:static\s+)?double\b/g,'var');
+  code=code.replace(/\b(?:static\s+)?long\b/g,'var');
   code=code.replace(/\b(?:static\s+)?int\b/g,'var');
   code=code.replace(/\bstatic\s+var\b/g,'var');
   code=code.replace(/\bstatic\s+/g,'');
-  // Remove PROGMEM / override / attribute qualifiers
   code=code.replace(/\bPROGMEM\b/g,'');
   code=code.replace(/\boverride\b/g,'');
   code=code.replace(/\bNFXAPI\s*\*/g,'');
   code=code.replace(/\bconst\b/g,'');
-  // nullptr / NULL
   code=code.replace(/\bnullptr\b/g,'null');
   code=code.replace(/\bNULL\b/g,'null');
+  // this-> → nothing
+  code=code.replace(/\bthis\s*->\s*/g,'');
   // api-> → api.
   code=code.replace(/api\s*->\s*/g,'api.');
   // snprintf / itoa / sprintf
-  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*sizeof\s*\([^)]*\)\s*,([^;]+)\)/g,
-    (_,buf,rest)=>`${buf} = _sprintf(${rest.trim()})`);
-  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*\d+\s*,([^;]+)\)/g,
-    (_,buf,rest)=>`${buf} = _sprintf(${rest.trim()})`);
-  code=code.replace(/itoa\s*\(\s*([^,]+)\s*,\s*(\w+)\s*,[^)]*\)/g,
-    (_,val,buf)=>`${buf} = String(Math.trunc(${val}))`);
-  code=code.replace(/sprintf\s*\(\s*(\w+)\s*,([^;]+)\)/g,
-    (_,buf,rest)=>`${buf} = _sprintf(${rest.trim()})`);
+  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*sizeof\s*\([^)]*\)\s*,([^;]+)\)/g,(_,b,r)=>`${b} = _sprintf(${r.trim()})`);
+  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*\d+\s*,([^;]+)\)/g,           (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
+  code=code.replace(/sprintf\s*\(\s*(\w+)\s*,([^;]+)\)/g,                       (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
+  code=code.replace(/itoa\s*\(\s*([^,]+)\s*,\s*(\w+)\s*,[^)]*\)/g,             (_,v,b)=>`${b} = String(Math.trunc(${v}))`);
   // .c_str()
   code=code.replace(/\.c_str\(\)/g,'');
-  // Math functions
+  // Math
   code=code.replace(/\babs\s*\(/g,'Math.abs(');
+  code=code.replace(/\bfabs\s*\(/g,'Math.abs(');
   code=code.replace(/\bsin\s*\(/g,'Math.sin(');
   code=code.replace(/\bcos\s*\(/g,'Math.cos(');
+  code=code.replace(/\btan\s*\(/g,'Math.tan(');
   code=code.replace(/\bsqrt\s*\(/g,'Math.sqrt(');
   code=code.replace(/\bfloor\s*\(/g,'Math.floor(');
   code=code.replace(/\bceil\s*\(/g,'Math.ceil(');
   code=code.replace(/\bround\s*\(/g,'Math.round(');
+  code=code.replace(/\bpow\s*\(/g,'Math.pow(');
+  code=code.replace(/\bmin\s*\(/g,'Math.min(');
+  code=code.replace(/\bmax\s*\(/g,'Math.max(');
   code=code.replace(/\b(?:M_PI|PI)\b/g,'Math.PI');
-  // C-style casts: (int), (float), etc.
-  code=code.replace(/\(\s*(?:int|float|double|var|uint8_t|uint16_t|uint32_t|long)\s*\)/g,'');
-  // Float literals 3.14f → 3.14
+  // C casts
+  code=code.replace(/\(\s*(?:int|float|double|var|uint8_t|uint16_t|uint32_t|int8_t|int16_t|long)\s*\)/g,'');
+  // Float literals
   code=code.replace(/(\d+\.\d+)f\b/g,'$1');
-  // delay()
+  code=code.replace(/(\d+)f\b/g,'$1');
+  // delay / Serial
   code=code.replace(/\bdelay\s*\([^)]*\)\s*;/g,'');
-  // Serial.*
   code=code.replace(/Serial\s*\.\s*\w+\s*\([^)]*\)\s*;/g,'');
+  // map() function (Arduino)
+  code=code.replace(/\bmap\s*\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g,
+    '(($1-($2))*(($5)-($4))/(($3)-($2))+($4))');
+  // constrain()
+  code=code.replace(/\bconstrain\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g,
+    'Math.min(Math.max($1,$2),$3)');
   return code;
+}
+
+// ── Extract ALL methods from a class body
+function extractAllMethods(classBody){
+  const methods={};
+  const sig=/(?:static\s+)?(?:inline\s+)?(?:virtual\s+)?(?:void|bool|int\w*|uint\w*|float|double|String|\w+)\s+(\w+)\s*\(([^)]*)\)\s*(?:const\s+)?(?:override\s*)?\{/g;
+  let m;
+  while((m=sig.exec(classBody))!==null){
+    const name=m[1];
+    if(['if','while','for','switch','do','else','return'].includes(name)) continue;
+    // Skip obvious non-methods: struct, class
+    if(['struct','class','namespace'].includes(name)) continue;
+    const bodyStart=m.index+m[0].length;
+    const body=extractBraceBlock(classBody,bodyStart);
+    methods[name]={params:m[2],body};
+  }
+  return methods;
+}
+
+// ── Extract param names from C++ param string
+function extractParamNames(params){
+  if(!params||!params.trim()) return '';
+  return params.split(',').map(p=>{
+    const tokens=p.trim().replace(/[*&\[\]]/g,' ').split(/\s+/).filter(Boolean);
+    const name=tokens[tokens.length-1]||'';
+    if(!name) return '';
+    if(/^(const|unsigned|signed|void|int|uint|bool|float|double|char|String|NFXAPI|GFXfont|uint8_t|uint16_t|uint32_t)\b/.test(name)) return '';
+    return /^[a-zA-Z_]\w*$/.test(name) ? name : '';
+  }).filter(Boolean).join(', ');
 }
 
 function extractBraceBlock(code, startIdx){
@@ -1821,102 +2119,60 @@ function extractBraceBlock(code, startIdx){
 }
 
 function extractClassBody(code){
-  // strip comments first for reliable parsing
-  const stripped=code.replace(/\/\*[\s\S]*?\*\//g,' ').replace(/\/\/.*/g,'');
+  const stripped=stripComments(code);
   const m=/class\s+\w+\s*(?::\s*(?:public\s+)?\w+)?\s*\{/.exec(stripped);
   if(!m) return stripped;
-  return extractBraceBlock(stripped, m.index+m[0].length);
+  return extractBraceBlock(stripped,m.index+m[0].length);
 }
 
-// Extract parameter names from a C++ param list string
-function extractParamNames(params){
-  if(!params||!params.trim()) return '';
-  return params.split(',').map(p=>{
-    const tokens=p.trim().replace(/[*&\[\]]/g,' ').split(/\s+/).filter(Boolean);
-    // last token is the name; skip type qualifiers only
-    const name=tokens[tokens.length-1]||'';
-    // skip if it looks like a type keyword
-    if(/^(const|unsigned|signed|void|int|uint|bool|float|double|char|String|NFXAPI|GFXfont)/.test(name)) return '';
-    return name;
-  }).filter(Boolean).join(', ');
-}
-
-// Extract ALL methods from a class body, returning {name:{params,body}}
-function extractAllMethods(classBody){
-  const methods={};
-  // Match: [returnType] methodName(params) [const] [override] {
-  const sig=/(?:static\s+)?(?:inline\s+)?(?:void|bool|int\w*|uint\w*|float|double|String|var|\w+)\s+(\w+)\s*\(([^)]*)\)\s*(?:const\s+)?(?:override\s*)?\{/g;
+// ── Also grab #define constants outside the class
+function extractDefines(rawCode){
+  const defs=[];
+  const re=/#define\s+(\w+)\s+([^\n\\]+)/g;
   let m;
-  while((m=sig.exec(classBody))!==null){
+  while((m=re.exec(rawCode))!==null){
     const name=m[1];
-    if(['if','while','for','switch','do','else'].includes(name)) continue;
-    const bodyStart=m.index+m[0].length;
-    const body=extractBraceBlock(classBody, bodyStart);
-    methods[name]={params:m[2], body};
+    let val=m[2].trim().replace(/\s*\/\/.*$/,'').trim();
+    // Skip include guards
+    if(name.endsWith('_H')||name.endsWith('_HPP')) continue;
+    // Clean up value
+    val=val.replace(/[fF]$/,''); // remove float suffix
+    defs.push(`var ${name} = ${val};`);
   }
-  return methods;
-}
-
-// Extract member variable declarations (outside method bodies)
-function extractMemberVars(classBody){
-  // Remove method bodies: scan for { } at depth 0 and blank them
-  let flat='', depth=0;
-  for(let i=0;i<classBody.length;i++){
-    const ch=classBody[i];
-    if(ch==='{'){depth++;}
-    else if(ch==='}'){depth--;}
-    else if(depth===0){flat+=ch;}
-  }
-  const decls=[];
-  // Split by semicolons and process each potential declaration
-  for(const seg of flat.split(';')){
-    let t=seg.trim();
-    if(!t) continue;
-    // Remove access modifiers
-    t=t.replace(/^\s*(private|public|protected)\s*:\s*/,'').trim();
-    if(!t) continue;
-    // Skip #pragma / #include / using
-    if(/^[#@]|^using\b/.test(t)) continue;
-    // Skip if it contains ( ) — it's a method signature, not a var
-    if(/\(/.test(t)) continue;
-    // Must start with a known type (or be a known type pattern)
-    if(!/^(?:static\s+)?(?:unsigned\s+|signed\s+)?(?:const\s+)?(?:NFXAPI|uint\w+|int\w+|bool|float|double|String|char|var)\b/.test(t)) continue;
-    const js=transpileBlock(t);
-    const clean=js.trim().replace(/;$/,'');
-    if(clean && clean!=='var' && !/^var\s*$/.test(clean)){
-      decls.push(clean+';');
-    }
-  }
-  return decls.join('\n');
+  return defs.join('\n');
 }
 
 function buildApp(rawCode, nfxApi){
   try{
     const body=extractClassBody(rawCode);
-    const members=extractMemberVars(body);
+    // Scan ENTIRE file for struct defs (they're often outside the class)
+    const structs=extractStructDefs(stripComments(rawCode));
+    const defines=extractDefines(rawCode);
+    const members=extractMemberVars(body, structs);
     const methods=extractAllMethods(body);
 
-    const LIFECYCLE=['onStart','onLoop','onStop','getName','getIcon','getIconW','getIconH'];
+    const LIFECYCLE=['onStart','onLoop','onStop','getName','getIcon','getIconW','getIconH','drawPixel'];
 
-    // Build all non-lifecycle helper methods as plain JS functions
+    // Build helper functions (private methods)
     let helpers='';
     for(const [name,{params,body:mbody}] of Object.entries(methods)){
       if(LIFECYCLE.includes(name)) continue;
-      const paramNames=extractParamNames(params);
-      const jsBody=transpileBlock(mbody);
-      helpers+=`function ${name}(${paramNames}){\n${jsBody}\n}\n`;
+      const pnames=extractParamNames(params);
+      const jsbody=transpileBlock(mbody);
+      helpers+=`function ${name}(${pnames}){\n${jsbody}\n}\n`;
     }
 
     const onStartM=methods['onStart'];
-    const onLoopM=methods['onLoop'];
-    const onStopM=methods['onStop'];
+    const onLoopM =methods['onLoop'];
+    const onStopM =methods['onStop'];
 
-    const onStartBody=onStartM ? transpileBlock(onStartM.body) : '';
-    const onLoopBody=onLoopM  ? transpileBlock(onLoopM.body)  : '';
-    const onStopBody=onStopM  ? transpileBlock(onStopM.body)  : '';
+    const onStartBody=onStartM?transpileBlock(onStartM.body):'';
+    const onLoopBody =onLoopM ?transpileBlock(onLoopM.body) :'';
+    const onStopBody =onStopM ?transpileBlock(onStopM.body) :'';
 
     const jsCode=`(function(api,_sprintf){
       var a=api;
+      ${defines}
       ${members}
       ${helpers}
       return {
@@ -2154,12 +2410,18 @@ function loadImageFile(file){
   const url=URL.createObjectURL(file);
   const img=new Image();
   img.onload=()=>{
-    // Show preview at natural size (capped)
-    const maxW=previewCanvas.parentElement.clientWidth||200;
-    const scale=Math.min(1, maxW/img.naturalWidth, maxW/img.naturalHeight);
-    previewCanvas.width=img.naturalWidth; previewCanvas.height=img.naturalHeight;
-    previewCtx.drawImage(img,0,0);
-    srcImageData=previewCtx.getImageData(0,0,img.naturalWidth,img.naturalHeight);
+    // Draw into preview at the container's display size for pixel-sharp fill
+    const wrap=previewCanvas.parentElement;
+    const size=wrap.clientWidth||200;
+    // Scale to fill the square container maintaining aspect ratio
+    const scale=Math.min(size/img.naturalWidth, size/img.naturalHeight);
+    const dw=Math.round(img.naturalWidth*scale);
+    const dh=Math.round(img.naturalHeight*scale);
+    previewCanvas.width=dw;
+    previewCanvas.height=dh;
+    previewCtx.imageSmoothingEnabled=true; // smooth for source preview
+    previewCtx.drawImage(img,0,0,dw,dh);
+    srcImageData=previewCtx.getImageData(0,0,dw,dh);
     document.getElementById('previewPlaceholder').style.display='none';
     previewCanvas.style.display='block';
     document.getElementById('outW').value=Math.min(img.naturalWidth,200);
@@ -2306,12 +2568,22 @@ document.getElementById('convertBtn').addEventListener('click',()=>{
   const chosen=useRLE?rleBytes:stdBytes;
   const fmt=useRLE?'rle':'std';
 
-  // Show output preview
-  outputCanvas.width=outW; outputCanvas.height=outH;
-  const outId=outputCtx.createImageData(outW,outH);
-  for(let i=0;i<outW*outH;i++){
-    const v=pixels[i]?26:232;
-    outId.data[i*4]=v; outId.data[i*4+1]=v; outId.data[i*4+2]=v; outId.data[i*4+3]=255;
+  // Show output preview — draw at container size for sharp fill
+  const outWrap=outputCanvas.parentElement;
+  const outSize=outWrap.clientWidth||200;
+  // Scale up the 1-bit pixels to fill square, keep aspect ratio
+  const pxScale=Math.min(Math.floor(outSize/outW)||1, Math.floor(outSize/outH)||1);
+  const dispW=outW*pxScale, dispH=outH*pxScale;
+  outputCanvas.width=dispW; outputCanvas.height=dispH;
+  const outId=outputCtx.createImageData(dispW,dispH);
+  for(let py=0;py<dispH;py++){
+    for(let px=0;px<dispW;px++){
+      const srcX=Math.floor(px/pxScale), srcY=Math.floor(py/pxScale);
+      const v=pixels[srcY*outW+srcX]?26:232;
+      const idx=(py*dispW+px)*4;
+      outId.data[idx]=v; outId.data[idx+1]=v;
+      outId.data[idx+2]=pixels[srcY*outW+srcX]?24:(v-8); outId.data[idx+3]=255;
+    }
   }
   outputCtx.putImageData(outId,0,0);
   document.getElementById('outputPlaceholder').style.display='none';
