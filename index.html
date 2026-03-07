@@ -1756,11 +1756,14 @@ function _sprintf(fmt, ...args){
 // JS reserved words that are VALID C++ identifiers → rename to _word_
 const JS_RESERVED_CONFLICT = new Set([
   'in','of','let','yield','async','await','from','as','get','set',
-  'abstract','final','native','volatile','transient','strictfp'
+  'abstract','final','native','transient','strictfp'
+  // NOTE: 'volatile' intentionally excluded — rare and causes issues
 ]);
-// Rename globally using word boundaries so 'inline','input' etc. are NOT affected
+// Rename: only when not preceded by '.' (property access) and not a switch case label
 function preRenameConflicts(code){
-  const pat=new RegExp(`\\b(${[...JS_RESERVED_CONFLICT].join('|')})\\b`,'g');
+  if(!code) return code;
+  // Replace word when not preceded by . and not followed by : (case label)
+  const pat=new RegExp(`(?<![.\\w])(${[...JS_RESERVED_CONFLICT].join('|')})(?!\\s*:)(?![\\w])`, 'g');
   return code.replace(pat,(m)=>`_${m}_`);
 }
 
@@ -1800,16 +1803,17 @@ function extractStructDefs(code){
   return structs;
 }
 
-// ── Blank out method bodies (signature + body) in-place
-// Heuristic: a `{` that is preceded (ignoring whitespace + 'override'/'const' keywords) by `)` is a method body
+// ── Blank method BODIES only (the { ... } part, not the signature)
+// Heuristic: a `{` preceded (past whitespace + optional override/const) by `)` is a method body
+// We ONLY blank the body content, not the signature — extractMemberVars already skips
+// anything with `(` so method signatures are harmless there.
 function blankMethods(code){
   const chars=code.split('');
   for(let i=0;i<chars.length;i++){
     if(chars[i]!=='{') continue;
     let j=i-1;
-    // skip whitespace
     while(j>=0 && /\s/.test(chars[j])) j--;
-    // skip 'override' or 'const' keyword
+    // skip trailing 'override' or 'const' keyword before {
     if(j>=0 && /\w/.test(chars[j])){
       let kw='';
       const save=j;
@@ -1817,28 +1821,20 @@ function blankMethods(code){
       if(kw==='override'||kw==='const'){
         while(j>=0 && /\s/.test(chars[j])) j--;
       } else {
-        j=save; // restore: not a qualifier keyword
+        j=save;
       }
     }
     if(j<0 || chars[j]!==')') continue; // not a method body
-    // It IS a method body. Find sig start by scanning back to previous ; or } (at depth 0)
-    let sigStart=i;
-    let bd=0;
-    for(let k=i-1;k>=0;k--){
-      if(chars[k]==='}') bd++;
-      else if(chars[k]==='{') bd--;
-      else if(bd===0 && (chars[k]===';'||chars[k]==='{')){sigStart=k+1;break;}
-      else if(k===0) sigStart=0;
+    // Blank ONLY the body contents (between { and matching }), replacing with spaces
+    // Keep the { and } themselves so brace-depth tracking still works elsewhere
+    let depth=1, k=i+1;
+    while(k<chars.length && depth>0){
+      if(chars[k]==='{') depth++;
+      else if(chars[k]==='}') depth--;
+      if(depth>0) chars[k]=' ';
+      k++;
     }
-    // Blank from sigStart to end of method body (including closing })
-    let depth=1, end=i+1;
-    while(end<chars.length && depth>0){
-      if(chars[end]==='{') depth++;
-      else if(chars[end]==='}') depth--;
-      end++;
-    }
-    for(let k=sigStart;k<end;k++) chars[k]=' ';
-    i=end-1;
+    i=k-1;
   }
   return chars.join('');
 }
@@ -2058,7 +2054,10 @@ function transpileBlock(code){
   code=code.replace(/\b(?:static\s+)?long\b/g,'var');
   code=code.replace(/\b(?:static\s+)?(?:unsigned\s+)?int\b/g,'var');
   code=code.replace(/\bauto\b/g,'var');
-  code=code.replace(/\bvoid\b/g,'');               // void* ptr, (void)x, etc.
+  // void: remove as return type or (void) cast, but NOT inside identifiers
+  code=code.replace(/\bvoid\s*\*\s*/g,'var ');  // void* ptr → var ptr
+  code=code.replace(/\(\s*void\s*\)\s*/g,'');   // (void) cast → nothing
+  code=code.replace(/\bvoid\b/g,'');            // remaining void (return type etc.)
   code=code.replace(/\bstatic\s+var\b/g,'var');
   code=code.replace(/\bstatic\s+/g,'');
   code=code.replace(/\bconst\b/g,'');
@@ -2137,9 +2136,9 @@ function transpileBlock(code){
   code=code.replace(/(\d+\.\d+)[fFlL]\b/g,'$1');
   code=code.replace(/(\d+)[fFlL]\b/g,'$1');
 
-  // ── 14. Enum usage: EnumType::VALUE → just VALUE (already a var from enum extraction)
-  code=code.replace(/\b\w+::/g,'');  // strip namespace/class qualifiers
-  // Scope resolution in method calls handled above
+  // ── 14. Scope resolution: ClassName::MEMBER → MEMBER
+  // Only strip when followed by an identifier (not operators like ::=)
+  code=code.replace(/\b\w+::(?=\w)/g,'');
 
   // ── 15. Bit ops / pointer dereference safety
   code=code.replace(/\bbitRead\s*\(\s*([^,]+),\s*([^)]+)\)/g,'(($1>>($2))&1)');
@@ -2148,17 +2147,19 @@ function transpileBlock(code){
   code=code.replace(/\bbitWrite\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g,
     '(($3)?($1|=(1<<($2))):($1&=~(1<<($2))))');
 
-  // ── 16. Pointer derefs that survived → treat *ptr as ptr (approx)
-  // *ptr = value;  →  ptr = value
-  code=code.replace(/\*\s*(\w+)\s*=/g,'$1 =');
-  // var& ref = ... → var ref = ...  (already handled by & strip in type cleanup)
-  code=code.replace(/[&]\s*(\w+)/g,'$1');   // & in declarations
-
-  // ── 17. Cleanup artefacts from type removal
+  // ── 16. Clean up type-qualifier artifacts left in declarations
+  // var* x → var x,  var& x → var x  (only when immediately after var keyword)
+  code=code.replace(/\bvar\s*\*\s*/g,'var ');
+  code=code.replace(/\bvar\s*&\s*/g,'var ');
   code=code.replace(/\bvar\s+var\b/g,'var');
-  code=code.replace(/\bvar\s*\*/g,'var');    // var* x → var x
-  code=code.replace(/\bvar\s*&\b/g,'var');   // var& x → var x
-  code=code.replace(/\bvar\s*\[\s*\]/g,'var'); // var[] x → var x (rare)
+
+  // Strip & only when it appears as a unary address-of in a function call argument
+  // e.g. fn(&ptr) → fn(ptr)  BUT preserve && (logical and)
+  code=code.replace(/([,(]\s*)&(?!&)(\w)/g,'$1$2');
+
+  // Strip lone * dereferences in statements: *name = expr → name = expr
+  // Only when * appears after whitespace/semicolon/brace (start of statement)
+  code=code.replace(/([\s;{,(\[])\*(\w+)/g,'$1$2');
 
   return code;
 }
