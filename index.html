@@ -1750,11 +1750,19 @@ function _sprintf(fmt, ...args){
 }
 
 // ═══════════════════════════════════════════════════════
-//  C++ → JS TRANSPILER
+//  C++ → JS TRANSPILER  (v4 — complete)
 // ═══════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════
-//  C++ → JS TRANSPILER  (v3 — handles struct arrays, all patterns)
-// ═══════════════════════════════════════════════════════
+
+// JS reserved words that are VALID C++ identifiers → rename to _word_
+const JS_RESERVED_CONFLICT = new Set([
+  'in','of','let','yield','async','await','from','as','get','set',
+  'abstract','final','native','volatile','transient','strictfp'
+]);
+// Rename globally using word boundaries so 'inline','input' etc. are NOT affected
+function preRenameConflicts(code){
+  const pat=new RegExp(`\\b(${[...JS_RESERVED_CONFLICT].join('|')})\\b`,'g');
+  return code.replace(pat,(m)=>`_${m}_`);
+}
 
 function stripComments(code){
   return code.replace(/\/\*[\s\S]*?\*\//g,' ').replace(/\/\/.*/g,'');
@@ -1882,6 +1890,8 @@ function convertBraceInit(init, structFields){
 
 // ── Extract member variable declarations (skipping method bodies)
 function extractMemberVars(classBody, structs){
+  // Rename reserved words first
+  classBody=preRenameConflicts(classBody);
   // Remove struct definitions (they're not variables)
   let code=classBody.replace(/\bstruct\s+\w+\s*\{[^}]*\}\s*;?/g,'');
   // Blank all method bodies + signatures
@@ -2011,44 +2021,82 @@ function transpileBlock(code){
   if(!code) return '';
   code=stripComments(code);
 
-  // for-loops FIRST (before generic type replacement clobbers the type)
+  // ── 0. Pre-rename C++ identifiers that are JS reserved words
+  code=preRenameConflicts(code);
+
+  // ── 1. Arduino / C++ keywords to strip entirely
+  code=code.replace(/\bPROGMEM\b/g,'');
+  code=code.replace(/\boverride\b/g,'');
+  code=code.replace(/\bNFXAPI\s*\*/g,'');
+  code=code.replace(/\bvirtual\b/g,'');
+  code=code.replace(/\bexplicit\b/g,'');
+  code=code.replace(/\binline\b/g,'');
+  code=code.replace(/\bregister\b/g,'');
+
+  // ── 2. Range-based for: for(auto& x : arr) → for(var _i_=0;_i_<arr.length;_i_++){var x=arr[_i_];
+  // and for(const auto& x : arr) same
   code=code.replace(
-    /\bfor\s*\(\s*(?:static\s+)?(?:unsigned\s+)?(?:const\s+)?(?:uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|int|char|float|double|bool)\s+(\w+)/g,
+    /for\s*\(\s*(?:const\s+)?(?:auto\s*[&*]?|(?:var)\s*[&*]?|(?:uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|int|char|float|double|bool|String)\s*[&*]?)\s*(\w+)\s*:\s*([^)]+)\)/g,
+    (_,item,container)=>`for(var _rfi_=0;_rfi_<(${container.trim()}).length;_rfi_++){var ${item}=(${container.trim()})[_rfi_];`
+  );
+
+  // ── 3. For-loops with C types — MUST be before generic type stripping
+  code=code.replace(
+    /\bfor\s*\(\s*(?:static\s+)?(?:unsigned\s+)?(?:const\s+)?(?:auto|size_t|uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|int|char|float|double|bool)\s+(\w+)/g,
     'for(var $1'
   );
 
-  // Types → var
-  const typeRe=/\b(?:static\s+)?(?:unsigned\s+)?(?:const\s+)?(?:uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t)\b/g;
-  code=code.replace(typeRe,'var');
+  // ── 4. Type keywords → var
+  code=code.replace(/\b(?:static\s+)?(?:unsigned\s+)?(?:const\s+)?(?:size_t|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t)\b/g,'var');
   code=code.replace(/\bconst\s+char\s*\*/g,'var');
   code=code.replace(/\bchar\s+(\w+)\s*\[\s*\d*\s*\]/g,'var $1');
   code=code.replace(/\bchar\b(?!\s*\[)/g,'var');
-  code=code.replace(/\b(?:static\s+)?String\b/g,'var');
+  code=code.replace(/\b(?:static\s+)?(?:unsigned\s+)?String\b/g,'var');
   code=code.replace(/\b(?:static\s+)?bool\b/g,'var');
   code=code.replace(/\b(?:static\s+)?float\b/g,'var');
   code=code.replace(/\b(?:static\s+)?double\b/g,'var');
   code=code.replace(/\b(?:static\s+)?long\b/g,'var');
-  code=code.replace(/\b(?:static\s+)?int\b/g,'var');
+  code=code.replace(/\b(?:static\s+)?(?:unsigned\s+)?int\b/g,'var');
+  code=code.replace(/\bauto\b/g,'var');
+  code=code.replace(/\bvoid\b/g,'');               // void* ptr, (void)x, etc.
   code=code.replace(/\bstatic\s+var\b/g,'var');
   code=code.replace(/\bstatic\s+/g,'');
-  code=code.replace(/\bPROGMEM\b/g,'');
-  code=code.replace(/\boverride\b/g,'');
-  code=code.replace(/\bNFXAPI\s*\*/g,'');
   code=code.replace(/\bconst\b/g,'');
+
+  // ── 5. Null / bool literals
   code=code.replace(/\bnullptr\b/g,'null');
   code=code.replace(/\bNULL\b/g,'null');
-  // this-> → nothing
+  code=code.replace(/\btrue\b/g,'true');
+  code=code.replace(/\bfalse\b/g,'false');
+
+  // ── 6. this-> and api->
   code=code.replace(/\bthis\s*->\s*/g,'');
-  // api-> → api.
   code=code.replace(/api\s*->\s*/g,'api.');
-  // snprintf / itoa / sprintf
-  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*sizeof\s*\([^)]*\)\s*,([^;]+)\)/g,(_,b,r)=>`${b} = _sprintf(${r.trim()})`);
-  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*\d+\s*,([^;]+)\)/g,           (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
-  code=code.replace(/sprintf\s*\(\s*(\w+)\s*,([^;]+)\)/g,                       (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
-  code=code.replace(/itoa\s*\(\s*([^,]+)\s*,\s*(\w+)\s*,[^)]*\)/g,             (_,v,b)=>`${b} = String(Math.trunc(${v}))`);
-  // .c_str()
-  code=code.replace(/\.c_str\(\)/g,'');
-  // Math
+
+  // ── 7. printf family
+  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*sizeof\s*\([^)]*\)\s*,([^;]+)\)/g, (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
+  code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*[\w+\-*/ ()]+\s*,([^;]+)\)/g,      (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
+  code=code.replace(/sprintf\s*\(\s*(\w+)\s*,([^;]+)\)/g,                            (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
+  code=code.replace(/printf\s*\([^;]+\)\s*;/g,'');
+  code=code.replace(/itoa\s*\(\s*([^,]+)\s*,\s*(\w+)\s*,[^)]*\)/g,                  (_,v,b)=>`${b} = String(Math.trunc(${v}))`);
+
+  // ── 8. C string functions
+  code=code.replace(/\.c_str\s*\(\s*\)/g,'');
+  code=code.replace(/\bstrlen\s*\(\s*([^)]+)\)/g,'($1).length');
+  code=code.replace(/\bstrcmp\s*\(\s*([^,]+),\s*([^)]+)\)/g,'(($1)==($2)?0:1)');
+  code=code.replace(/\bstrcpy\s*\(\s*(\w+)\s*,\s*([^)]+)\)/g,'$1 = $2');
+  code=code.replace(/\bstrcat\s*\(\s*(\w+)\s*,\s*([^)]+)\)/g,'$1 += $2');
+  code=code.replace(/\bstrncat\s*\(\s*(\w+)\s*,\s*([^,]+),\s*[^)]+\)/g,'$1 += $2');
+  code=code.replace(/\bmemset\s*\(\s*([^,]+),\s*([^,]+),\s*[^)]+\)/g,'($1).fill($2)');
+
+  // ── 9. Arduino String methods  
+  code=code.replace(/\.length\s*\(\s*\)/g,'.length');
+  code=code.replace(/\.toInt\s*\(\s*\)/g,'-0|0');
+  code=code.replace(/\.toFloat\s*\(\s*\)/g,'*1');
+  code=code.replace(/\.equals\s*\(/g,'==(');       // approximate
+  code=code.replace(/\.equalsIgnoreCase\s*\(/g,'.toLowerCase()==(');
+
+  // ── 10. Math / Arduino helpers
   code=code.replace(/\babs\s*\(/g,'Math.abs(');
   code=code.replace(/\bfabs\s*\(/g,'Math.abs(');
   code=code.replace(/\bsin\s*\(/g,'Math.sin(');
@@ -2061,21 +2109,57 @@ function transpileBlock(code){
   code=code.replace(/\bpow\s*\(/g,'Math.pow(');
   code=code.replace(/\bmin\s*\(/g,'Math.min(');
   code=code.replace(/\bmax\s*\(/g,'Math.max(');
+  code=code.replace(/\brandom\s*\(/g,'Math.floor(Math.random()*(');  // random(n) → floor(rand*(n))
+  code=code.replace(/Math\.floor\(Math\.random\(\)\*\(([^)]+)\)\)/g,'(Math.floor(Math.random()*($1)))'); // fix parens
+  code=code.replace(/\brandomSeed\s*\([^)]*\)\s*;/g,'');
   code=code.replace(/\b(?:M_PI|PI)\b/g,'Math.PI');
-  // C casts
-  code=code.replace(/\(\s*(?:int|float|double|var|uint8_t|uint16_t|uint32_t|int8_t|int16_t|long)\s*\)/g,'');
-  // Float literals
-  code=code.replace(/(\d+\.\d+)f\b/g,'$1');
-  code=code.replace(/(\d+)f\b/g,'$1');
-  // delay / Serial
-  code=code.replace(/\bdelay\s*\([^)]*\)\s*;/g,'');
-  code=code.replace(/Serial\s*\.\s*\w+\s*\([^)]*\)\s*;/g,'');
-  // map() function (Arduino)
+
+  // ── 11. Arduino-specific
   code=code.replace(/\bmap\s*\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g,
     '(($1-($2))*(($5)-($4))/(($3)-($2))+($4))');
-  // constrain()
   code=code.replace(/\bconstrain\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g,
     'Math.min(Math.max($1,$2),$3)');
+  code=code.replace(/\bpgm_read_byte\s*\(\s*([^)]+)\)/g,'($1)');
+  code=code.replace(/\bpgm_read_word\s*\(\s*([^)]+)\)/g,'($1)');
+  code=code.replace(/\bpgm_read_dword\s*\(\s*([^)]+)\)/g,'($1)');
+  code=code.replace(/\bmillis\s*\(\s*\)/g,'Date.now()');
+  code=code.replace(/\bmicros\s*\(\s*\)/g,'(Date.now()*1000)');
+  code=code.replace(/\bdelay\s*\([^)]*\)\s*;/g,'');
+  code=code.replace(/\bSerial\s*\.\s*\w+\s*\([^)]*\)\s*;/g,'');
+  code=code.replace(/\bWire\s*\.\s*\w+\s*\([^;]*\)\s*;/g,'');
+
+  // ── 12. C casts → strip
+  code=code.replace(/\(\s*(?:int|float|double|long|short|char|var|uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|size_t)\s*\)/g,'');
+  // (void) cast
+  code=code.replace(/\(\s*\)\s*(\w)/g,'$1'); // clean up dangling ()
+
+  // ── 13. Float / hex literals
+  code=code.replace(/(\d+\.\d+)[fFlL]\b/g,'$1');
+  code=code.replace(/(\d+)[fFlL]\b/g,'$1');
+
+  // ── 14. Enum usage: EnumType::VALUE → just VALUE (already a var from enum extraction)
+  code=code.replace(/\b\w+::/g,'');  // strip namespace/class qualifiers
+  // Scope resolution in method calls handled above
+
+  // ── 15. Bit ops / pointer dereference safety
+  code=code.replace(/\bbitRead\s*\(\s*([^,]+),\s*([^)]+)\)/g,'(($1>>($2))&1)');
+  code=code.replace(/\bbitSet\s*\(\s*([^,]+),\s*([^)]+)\)/g,'($1|=(1<<($2)))');
+  code=code.replace(/\bbitClear\s*\(\s*([^,]+),\s*([^)]+)\)/g,'($1&=~(1<<($2)))');
+  code=code.replace(/\bbitWrite\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g,
+    '(($3)?($1|=(1<<($2))):($1&=~(1<<($2))))');
+
+  // ── 16. Pointer derefs that survived → treat *ptr as ptr (approx)
+  // *ptr = value;  →  ptr = value
+  code=code.replace(/\*\s*(\w+)\s*=/g,'$1 =');
+  // var& ref = ... → var ref = ...  (already handled by & strip in type cleanup)
+  code=code.replace(/[&]\s*(\w+)/g,'$1');   // & in declarations
+
+  // ── 17. Cleanup artefacts from type removal
+  code=code.replace(/\bvar\s+var\b/g,'var');
+  code=code.replace(/\bvar\s*\*/g,'var');    // var* x → var x
+  code=code.replace(/\bvar\s*&\b/g,'var');   // var& x → var x
+  code=code.replace(/\bvar\s*\[\s*\]/g,'var'); // var[] x → var x (rare)
+
   return code;
 }
 
@@ -2098,13 +2182,25 @@ function extractAllMethods(classBody){
 
 // ── Extract param names from C++ param string
 function extractParamNames(params){
-  if(!params||!params.trim()) return '';
+  if(!params||!params.trim()||params.trim()==='void') return '';
   return params.split(',').map(p=>{
-    const tokens=p.trim().replace(/[*&\[\]]/g,' ').split(/\s+/).filter(Boolean);
+    p=p.trim();
+    if(!p||p==='void') return '';
+    // Strip type qualifiers, pointer/reference markers, array brackets, default values
+    p=p.replace(/=\s*[^,]*/,'')   // default value
+       .replace(/\bconst\b/g,'')
+       .replace(/\bvolatile\b/g,'')
+       .replace(/\bunsigned\b/g,'')
+       .replace(/\bsigned\b/g,'')
+       .replace(/[*&\[\]]/g,' ')
+       .replace(/\bPROGMEM\b/g,'');
+    const tokens=p.trim().split(/\s+/).filter(Boolean);
     const name=tokens[tokens.length-1]||'';
-    if(!name) return '';
-    if(/^(const|unsigned|signed|void|int|uint|bool|float|double|char|String|NFXAPI|GFXfont|uint8_t|uint16_t|uint32_t)\b/.test(name)) return '';
-    return /^[a-zA-Z_]\w*$/.test(name) ? name : '';
+    if(!name||!(/^[a-zA-Z_]\w*$/.test(name))) return '';
+    // Skip if the last token is a type keyword (no name given)
+    if(/^(?:const|unsigned|signed|void|int|uint|bool|float|double|char|String|NFXAPI|GFXfont|uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|size_t|auto)$/.test(name)) return '';
+    // Rename JS reserved word params
+    return JS_RESERVED_CONFLICT.has(name) ? `_${name}_` : name;
   }).filter(Boolean).join(', ');
 }
 
@@ -2142,12 +2238,40 @@ function extractDefines(rawCode){
   return defs.join('\n');
 }
 
+// ── Extract enum values as JS const vars
+function extractEnums(code){
+  const defs=[];
+  const re=/\benum\s+(?:class\s+)?(\w+)?\s*\{([^}]*)\}/g;
+  let m;
+  while((m=re.exec(code))!==null){
+    let idx=0;
+    for(const entry of m[2].split(',')){
+      const t=entry.trim().replace(/\/\/[^\n]*/g,'').trim();
+      if(!t) continue;
+      const eqM=t.match(/^(\w+)\s*=\s*(.+)$/);
+      if(eqM){
+        const v=eqM[2].trim().replace(/[fFlL]$/,'');
+        const n=eqM[1]; idx=parseInt(v)||idx;
+        defs.push(`var ${n} = ${v};`);
+      } else if(/^\w+$/.test(t)){
+        defs.push(`var ${t} = ${idx};`);
+      }
+      idx++;
+    }
+  }
+  return defs.join('\n');
+}
+
 function buildApp(rawCode, nfxApi){
   try{
-    const body=extractClassBody(rawCode);
+    // Step 0: pre-rename any C++ identifiers that conflict with JS reserved words
+    const safeCode=preRenameConflicts(rawCode);
+
+    const body=extractClassBody(safeCode);
     // Scan ENTIRE file for struct defs (they're often outside the class)
-    const structs=extractStructDefs(stripComments(rawCode));
-    const defines=extractDefines(rawCode);
+    const structs=extractStructDefs(stripComments(safeCode));
+    const defines=extractDefines(safeCode);
+    const enums=extractEnums(stripComments(safeCode));
     const members=extractMemberVars(body, structs);
     const methods=extractAllMethods(body);
 
@@ -2173,6 +2297,7 @@ function buildApp(rawCode, nfxApi){
     const jsCode=`(function(api,_sprintf){
       var a=api;
       ${defines}
+      ${enums}
       ${members}
       ${helpers}
       return {
@@ -2185,6 +2310,10 @@ function buildApp(rawCode, nfxApi){
     return factory(nfxApi,_sprintf);
   }catch(e){
     console.error('Transpile error:',e);
+    // Log first 3000 chars of generated code to help diagnose
+    console.groupCollapsed('Generated JS (first 3000 chars)');
+    try{ console.log(jsCode.slice(0,3000)); } catch(_){}
+    console.groupEnd();
     return null;
   }
 }
