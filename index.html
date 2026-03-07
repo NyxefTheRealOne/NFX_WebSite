@@ -1967,14 +1967,32 @@ function extractMemberVars(classBody, structs){
     }
 
     // ── const char* or char array (string list)?
-    if(/\bchar\b/.test(stmt) && /\[/.test(stmt) && stmt.includes('=')){
-      const nm=stmt.match(/\b(\w+)\s*\[\s*\d*\s*\]/);
-      if(nm){
-        const varName=nm[1];
-        const eqIdx=stmt.indexOf('=');
-        const initStr=stmt.slice(eqIdx+1).trim();
-        const inner=initStr.replace(/^\{/,'').replace(/\}$/,'').trim();
-        decls.push(`var ${varName} = [${inner}];`);
+    if(/\bchar\b/.test(stmt) && /\[/.test(stmt)){
+      // Find all variable names — handles multi-decl: char log0[32], log1[32]
+      // Strip the type prefix, then split by comma
+      const noType=stmt.replace(/\bconst\b/g,'').replace(/\bchar\b/g,'').trim();
+      // Check if there's an initializer (single-var with = {...})
+      if(stmt.includes('=') && stmt.includes('{')){
+        const nm=noType.match(/(\w+)\s*\[\s*\d*\s*\]/);
+        if(nm){
+          const varName=nm[1];
+          const eqIdx=stmt.indexOf('=');
+          const initStr=stmt.slice(eqIdx+1).trim();
+          const inner=initStr.replace(/^\{/,'').replace(/\}$/,'').trim();
+          decls.push(`var ${varName} = [${inner}];`);
+          continue;
+        }
+      }
+      // No initializer (or simple string init) — extract each name and init to ""
+      const names=[];
+      for(const part of noType.split(',')){
+        const nm=part.trim().match(/(\w+)\s*(?:\[\s*\d*\s*\])?/);
+        if(nm && nm[1] && !/^(const|unsigned|signed|void|int|bool|float|double|uint8_t|uint16_t)$/.test(nm[1])){
+          names.push(nm[1]);
+        }
+      }
+      if(names.length>0){
+        for(const n of names) decls.push(`var ${n} = "";`);
         continue;
       }
     }
@@ -2081,9 +2099,10 @@ function transpileBlock(code){
   code=code.replace(/\btrue\b/g,'true');
   code=code.replace(/\bfalse\b/g,'false');
 
-  // ── 6. this-> and api->
-  code=code.replace(/\bthis\s*->\s*/g,'');
-  code=code.replace(/api\s*->\s*/g,'api.');
+  // ── 6. Pointer member access: any->member → any.member
+  // this-> and api-> are covered by the universal replacement.
+  // Also handles: a->now(), nfx->clear(), etc.
+  code=code.replace(/->/g,'.');
 
   // ── 7. printf family
   code=code.replace(/snprintf\s*\(\s*(\w+)\s*,\s*sizeof\s*\([^)]*\)\s*,([^;]+)\)/g, (_,b,r)=>`${b} = _sprintf(${r.trim()})`);
@@ -2093,6 +2112,8 @@ function transpileBlock(code){
   code=code.replace(/itoa\s*\(\s*([^,]+)\s*,\s*(\w+)\s*,[^)]*\)/g,                  (_,v,b)=>`${b} = String(Math.trunc(${v}))`);
 
   // ── 8. C string functions
+  // C string-clear idiom: str[0] = '\0'  or  str[0] = 0  → str = ""
+  code=code.replace(/\b(\w+)\s*\[\s*0\s*\]\s*=\s*(?:'\\0'|""|0\b)\s*;/g,'$1 = "";');
   code=code.replace(/\.c_str\s*\(\s*\)/g,'');
   code=code.replace(/\bstrlen\s*\(\s*([^)]+)\)/g,'($1).length');
   code=code.replace(/\bstrcmp\s*\(\s*([^,]+),\s*([^)]+)\)/g,'(($1)==($2)?0:1)');
