@@ -1775,28 +1775,39 @@ function stripComments(code){
 // Returns { TypeName: ['field1','field2',...] }
 function extractStructDefs(code){
   const structs={};
-  // Match struct Foo { ... }; — allow newlines in body
   const re=/\bstruct\s+(\w+)\s*\{([\s\S]*?)\}/g;
   let m;
   while((m=re.exec(code))!==null){
     const name=m[1];
     if(['Contact','SMS','Conv','Message','Item','Entry','Option'].includes(name)||/^[A-Z]/.test(name)){
-      const fields=m[2].split(';').map(seg=>{
+      const fields=[];
+      for(const seg of m[2].split(';')){
         const t=seg.trim()
-          .replace(/\/\/[^\n]*/g,'')  // strip inline comments
-          .replace(/=.*$/,'')         // strip defaults
-          .replace(/\[.*?\]/g,'')     // strip array dims
+          .replace(/\/\/[^\n]*/g,'')
+          .replace(/=.*$/,'')
+          .replace(/\[.*?\]/g,'')
           .replace(/\bPROGMEM\b/g,'')
+          .replace(/\bconst\b/g,'')
           .trim();
-        if(!t) return null;
-        const tokens=t.split(/\s+/).filter(Boolean);
-        const last=tokens[tokens.length-1]||'';
-        // Skip if name looks like a type keyword
-        if(/^(?:const|unsigned|signed|void|int|uint|bool|float|double|char|String|uint8_t|uint16_t|uint32_t)$/.test(last)) return null;
-        // Must be a valid identifier
-        if(!/^[a-zA-Z_]\w*$/.test(last)) return null;
-        return last;
-      }).filter(Boolean);
+        if(!t) continue;
+        // Split on comma to handle `uint8_t hp, atk, xp, gold`
+        // Strip the type (all leading tokens except the last one on each comma-part)
+        // First identify the type tokens from the first comma-segment
+        const parts=t.split(',');
+        // The type prefix is everything before the first identifier in parts[0]
+        const firstPart=parts[0].trim().split(/\s+/).filter(Boolean);
+        // Type keywords are anything except the last token (which is the field name)
+        const typeKeywords=new Set(['const','unsigned','signed','static','volatile',
+          'int','uint','bool','float','double','char','String','void',
+          'uint8_t','uint16_t','uint32_t','uint64_t','int8_t','int16_t','int32_t','size_t']);
+        for(const part of parts){
+          const tokens=part.trim().split(/\s+/).filter(Boolean);
+          const last=tokens[tokens.length-1]||'';
+          if(!last||typeKeywords.has(last)) continue;
+          if(!/^[a-zA-Z_]\w*$/.test(last)) continue;
+          fields.push(last);
+        }
+      }
       structs[name]=fields;
     }
   }
@@ -1910,6 +1921,8 @@ function extractMemberVars(classBody, structs){
     stmt=stmt.replace(/^\s*(private|public|protected)\s*:\s*/,'').trim();
     if(!stmt) continue;
     if(/^[#@]|^using\b|^class\b|^namespace\b|^typedef\b/.test(stmt)) continue;
+    // Skip enum declarations entirely — handled by extractEnums
+    if(/^\s*(?:static\s+)?(?:const\s+)?enum\b/.test(stmt)||/^\s*enum\b/.test(stmt)) continue;
     // Skip NFXAPI pointers, virtual declarations, pure virtuals
     if(/\bNFXAPI\s*\*|\bvirtual\b|=\s*0\s*$/.test(stmt)) continue;
     // Skip method signatures: anything that has ( before any = or {
@@ -2084,6 +2097,7 @@ function transpileBlock(code){
   code=code.replace(/\bstrlen\s*\(\s*([^)]+)\)/g,'($1).length');
   code=code.replace(/\bstrcmp\s*\(\s*([^,]+),\s*([^)]+)\)/g,'(($1)==($2)?0:1)');
   code=code.replace(/\bstrcpy\s*\(\s*(\w+)\s*,\s*([^)]+)\)/g,'$1 = $2');
+  code=code.replace(/\bstrncpy\s*\(\s*(\w+)\s*,\s*([^,]+),\s*[^)]+\)/g,'$1 = String($2)');
   code=code.replace(/\bstrcat\s*\(\s*(\w+)\s*,\s*([^)]+)\)/g,'$1 += $2');
   code=code.replace(/\bstrncat\s*\(\s*(\w+)\s*,\s*([^,]+),\s*[^)]+\)/g,'$1 += $2');
   code=code.replace(/\bmemset\s*\(\s*([^,]+),\s*([^,]+),\s*[^)]+\)/g,'($1).fill($2)');
@@ -2153,13 +2167,19 @@ function transpileBlock(code){
   code=code.replace(/\bvar\s*&\s*/g,'var ');
   code=code.replace(/\bvar\s+var\b/g,'var');
 
-  // Strip & only when it appears as a unary address-of in a function call argument
-  // e.g. fn(&ptr) → fn(ptr)  BUT preserve && (logical and)
+  // PascalCase user-defined types with & or * that survived (e.g. EnemyDef& e, Contact* p)
+  code=code.replace(/\b[A-Z][A-Za-z0-9_]+\s*[&*]\s*(\w+)/g,'var $1');
+
+  // Strip & as address-of in function call args: fn(&ptr) → fn(ptr), preserve &&
   code=code.replace(/([,(]\s*)&(?!&)(\w)/g,'$1$2');
 
-  // Strip lone * dereferences in statements: *name = expr → name = expr
-  // Only when * appears after whitespace/semicolon/brace (start of statement)
+  // Strip lone * dereferences in statements
   code=code.replace(/([\s;{,(\[])\*(\w+)/g,'$1$2');
+
+  // Strip array size brackets left on variable names after type removal
+  // e.g. `var log0, log1[32]` → `var log0, log1`  and  `var name[16]` → `var name`
+  // (only strip when NOT preceded by `=`, to preserve array indexing like `arr[i]`)
+  code=code.replace(/\b(\w+)\s*\[\s*\d+\s*\](?!\s*=)/g,'$1');
 
   return code;
 }
@@ -2240,9 +2260,11 @@ function extractDefines(rawCode){
 }
 
 // ── Extract enum values as JS const vars
+// Handles: enum Name { }, enum class Name { }, enum Name : uint8_t { }
 function extractEnums(code){
   const defs=[];
-  const re=/\benum\s+(?:class\s+)?(\w+)?\s*\{([^}]*)\}/g;
+  // Allow optional `: BaseType` between name and `{`
+  const re=/\benum\s+(?:class\s+)?(\w+)?\s*(?::\s*\w+\s*)?\{([^}]*)\}/g;
   let m;
   while((m=re.exec(code))!==null){
     let idx=0;
@@ -2263,6 +2285,38 @@ function extractEnums(code){
   return defs.join('\n');
 }
 
+// ── Extract static data defined OUTSIDE the class body
+// e.g. `const AppFoo::EnemyDef AppFoo::ENEMIES[] = { ... };`
+// Also handles: `const uint8_t AppFoo::COUNT = 10;`
+function extractOuterStatics(rawCode, structs){
+  const stripped=stripComments(rawCode);
+  const decls=[];
+  // Match: (optional type info) ClassName::VarName (optional[]) = initExpr ;
+  // We find every `ClassName::VarName` assignment outside the class body
+  const re=/\w+::(\w+)\s*(?:\[\s*\]|\[\s*\d+\s*\])?\s*=\s*([\s\S]*?);(?=\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/|\s*(?:const|static|\/\/|$|\n)))/g;
+  let m;
+  while((m=re.exec(stripped))!==null){
+    const varName=m[1];
+    const initStr=m[2].trim();
+    // Determine if it's an array (contains outer braces)
+    if(initStr.startsWith('{')){
+      // Find what struct type this is (check known structs)
+      const fullLine=stripped.slice(Math.max(0,m.index-100), m.index+m[0].length);
+      let fields=[];
+      for(const [typeName,typeFields] of Object.entries(structs||{})){
+        if(fullLine.includes(typeName)){ fields=typeFields; break; }
+      }
+      const js=convertBraceInit(initStr, fields);
+      decls.push(`var ${varName} = ${js};`);
+    } else {
+      // Scalar
+      const val=initStr.replace(/[fFlL]$/,'');
+      decls.push(`var ${varName} = ${val};`);
+    }
+  }
+  return decls.join('\n');
+}
+
 function buildApp(rawCode, nfxApi){
   try{
     // Step 0: pre-rename any C++ identifiers that conflict with JS reserved words
@@ -2273,6 +2327,7 @@ function buildApp(rawCode, nfxApi){
     const structs=extractStructDefs(stripComments(safeCode));
     const defines=extractDefines(safeCode);
     const enums=extractEnums(stripComments(safeCode));
+    const outerStatics=extractOuterStatics(safeCode, structs);
     const members=extractMemberVars(body, structs);
     const methods=extractAllMethods(body);
 
@@ -2299,6 +2354,7 @@ function buildApp(rawCode, nfxApi){
       var a=api;
       ${defines}
       ${enums}
+      ${outerStatics}
       ${members}
       ${helpers}
       return {
